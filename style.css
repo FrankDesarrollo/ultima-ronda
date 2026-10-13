@@ -1,0 +1,154 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: 'Oswald', Arial, sans-serif;
+  user-select: none;
+}
+#game canvas { display: block; }
+.hidden { display: none !important; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; }
+
+#round {
+  position: absolute; left: 28px; top: 10px;
+  font-family: 'Creepster', cursive; font-size: 88px; color: #b30000;
+  text-shadow: 0 0 14px rgba(255, 0, 0, .6), 3px 3px 0 #000;
+}
+#round.flash { animation: roundflash 2.4s; }
+@keyframes roundflash {
+  0%, 100% { color: #b30000; }
+  20%, 60% { color: #fff; }
+  40%, 80% { color: #b30000; }
+}
+
+#crosshair { position: absolute; left: 50%; top: 50%; transition: opacity .1s; }
+#crosshair span { position: absolute; background: #fff; box-shadow: 0 0 2px #000; }
+#crosshair span:nth-child(1) { width: 2px; height: 9px; left: -1px; top: -15px; }
+#crosshair span:nth-child(2) { width: 2px; height: 9px; left: -1px; top: 6px; }
+#crosshair span:nth-child(3) { width: 9px; height: 2px; left: -15px; top: -1px; }
+#crosshair span:nth-child(4) { width: 9px; height: 2px; left: 6px; top: -1px; }
+
+#hitmarker { position: absolute; left: 50%; top: 50%; opacity: 0; }
+#hitmarker.show { opacity: 1; }
+#hitmarker span {
+  position: absolute; width: 22px; height: 2px; left: -11px; top: -1px;
+  background: #fff; box-shadow: 0 0 2px #000;
+}
+#hitmarker span:nth-child(1) { transform: rotate(45deg); }
+#hitmarker span:nth-child(2) { transform: rotate(-45deg); }
+#hitmarker.kill span { background: #ff2a2a; }
+
+#prompt {
+  position: absolute; left: 50%; top: 63%; transform: translateX(-50%);
+  font-size: 22px; letter-spacing: 1px; white-space: nowrap;
+  text-shadow: 0 0 4px #000, 0 0 10px #000;
+}
+#reload-msg {
+  position: absolute; left: 50%; top: 56%; transform: translateX(-50%);
+  font-size: 17px; letter-spacing: 2px; color: #fff; white-space: nowrap;
+  text-shadow: 0 0 4px #000;
+}
+#center-msg, #special-msg {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  opacity: 0; transition: opacity .5s; white-space: nowrap;
+  text-shadow: 0 0 10px #000, 2px 2px 0 #000;
+}
+#center-msg { top: 25%; font-size: 44px; letter-spacing: 4px; }
+#special-msg { top: 34%; font-size: 34px; color: #ff7eb6; }
+#center-msg.show, #special-msg.show { opacity: 1; }
+
+#health-bar {
+  position: absolute; left: 40px; bottom: 40px; width: 240px; height: 10px;
+  background: rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .35);
+}
+#health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #8a0000, #e83030); }
+
+#perks { position: absolute; left: 40px; bottom: 62px; display: flex; gap: 10px; }
+.perk {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 18px; border: 2px solid #fff;
+  text-shadow: 0 0 3px #000;
+}
+
+#points-box { position: absolute; right: 40px; bottom: 175px; text-align: right; }
+#points { font-size: 40px; color: #ffe9a8; text-shadow: 0 0 6px #000, 2px 2px 0 #000; }
+#points.deny { color: #ff3b3b; }
+#points-pop { position: relative; }
+.pop {
+  position: absolute; right: 0; top: -60px; color: #ffd84a; font-size: 22px;
+  text-shadow: 1px 1px 0 #000; animation: pop .9s forwards;
+}
+@keyframes pop { to { transform: translate(-50px, -50px); opacity: 0; } }
+
+#weapon-box { position: absolute; right: 40px; bottom: 36px; text-align: right; text-shadow: 2px 2px 0 #000; }
+#weapon-name { font-size: 20px; letter-spacing: 2px; color: #ddd; }
+#mag { font-size: 52px; }
+#reserve { font-size: 26px; color: #bbb; }
+
+#powerups {
+  position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%);
+  display: flex; gap: 14px;
+}
+.pu {
+  padding: 4px 12px; border: 2px solid; border-radius: 6px;
+  background: rgba(0, 0, 0, .55); font-size: 16px; white-space: nowrap;
+}
+
+#damage {
+  position: fixed; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(160,0,0,.95) 100%);
+}
+#flash { position: fixed; inset: 0; pointer-events: none; background: #fff; opacity: 0; transition: opacity .8s; }
+#scope {
+  position: fixed; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(#000, #000) center / 100% 1px no-repeat,
+    linear-gradient(#000, #000) center / 1px 100% no-repeat,
+    radial-gradient(circle at center, transparent 0, transparent 36vh, #000 36.4vh);
+}
+
+/* ---------- Menús ---------- */
+.overlay {
+  position: fixed; inset: 0; box-sizing: border-box; padding: 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  background: radial-gradient(ellipse at center, rgba(50, 0, 0, .78), rgba(0, 0, 0, .96));
+}
+#pause, #gameover { cursor: pointer; }
+h1 {
+  font-family: 'Creepster', cursive; font-weight: normal;
+  font-size: clamp(48px, 10vw, 120px); color: #c00; margin: 0; letter-spacing: 4px;
+  text-shadow: 0 0 22px rgba(255, 0, 0, .6), 4px 4px 0 #000;
+}
+h2 { font-size: 56px; margin: 0; letter-spacing: 6px; }
+.sub { color: #ff8fc0; font-size: 24px; margin: 4px 0 30px; }
+button {
+  font-family: 'Oswald', Arial, sans-serif; font-size: 28px; letter-spacing: 3px;
+  padding: 12px 52px; color: #fff; cursor: pointer;
+  background: #8a0000; border: 2px solid #ff4040; border-radius: 6px;
+}
+button:hover { background: #b80000; }
+.controls {
+  margin-top: 30px; display: grid; grid-template-columns: repeat(2, auto);
+  gap: 6px 36px; font-size: 16px; color: #bbb; text-align: left;
+}
+.controls b { color: #fff; display: inline-block; min-width: 110px; }
+.tip { color: #999; max-width: 560px; margin-top: 24px; font-size: 15px; }
+.tip b { color: #fff; }
+.maps { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.map-btn { display: flex; flex-direction: column; align-items: center; min-width: 220px; }
+.map-btn small { font-size: 14px; letter-spacing: 1px; color: #ffb3b3; margin-top: 2px; }
+
+#minimap {
+  position: absolute; right: 24px; top: 24px; width: 200px; height: 200px;
+  border-radius: 50%; box-shadow: 0 0 14px #000;
+}
+#grenades { font-size: 18px; color: #9fdc8f; letter-spacing: 2px; margin-top: 2px; }
+#weapon-name.pap { color: #d08cff; text-shadow: 0 0 8px #8a2be2, 2px 2px 0 #000; }
+.stats { font-size: 24px; line-height: 1.6; margin: 18px 0 30px; color: #ddd; }
+.stats b { color: #ffd84a; }

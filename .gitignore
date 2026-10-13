@@ -1,0 +1,9 @@
+# Archivos pesados / generados que no van al repo
+UltimaRonda.zip
+*.zip
+*.7z
+*.exe
+cpp/tools/
+cpp/dl/
+cpp/UltimaRonda/
+cpp/test/*.png

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Noche de Zombis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Oswald:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game"></div>
+
+  <!-- Interfaz durante el juego -->
+  <div id="hud" class="hidden">
+    <div id="round"></div>
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="crosshair"><span></span><span></span><span></span><span></span></div>
+    <div id="hitmarker"><span></span><span></span></div>
+    <div id="prompt"></div>
+    <div id="reload-msg"></div>
+    <div id="center-msg"></div>
+    <div id="special-msg"></div>
+    <div id="powerups"></div>
+    <div id="perks"></div>
+    <div id="health-bar"><div id="health-fill"></div></div>
+    <div id="points-box"><div id="points">0</div><div id="points-pop"></div></div>
+    <div id="weapon-box">
+      <div id="weapon-name"></div>
+      <div><span id="mag"></span><span id="reserve"></span></div>
+      <div id="grenades"></div>
+    </div>
+  </div>
+  <div id="scope" class="hidden"></div>
+  <div id="damage"></div>
+  <div id="flash"></div>
+
+  <!-- Menú inicial -->
+  <div id="menu" class="overlay">
+    <h1>NOCHE DE ZOMBIS</h1>
+    <div class="sub" id="dedicatoria"></div>
+    <div class="maps">
+      <button class="map-btn" data-map="bunker">BÚNKER<small>Pasillos estrechos · 5 zonas</small></button>
+      <button class="map-btn" data-map="fabrica">FÁBRICA<small>Mapa grande · 5 zonas</small></button>
+    </div>
+    <div class="controls">
+      <div><b>W A S D</b> moverse</div>
+      <div><b>Ratón</b> apuntar</div>
+      <div><b>Clic izq.</b> disparar</div>
+      <div><b>Clic der.</b> mirilla</div>
+      <div><b>Shift</b> correr</div>
+      <div><b>Espacio</b> saltar</div>
+      <div><b>C</b> agacharse</div>
+      <div><b>G</b> granada</div>
+      <div><b>R</b> recargar</div>
+      <div><b>E</b> comprar / reparar</div>
+      <div><b>1 / 2 / rueda</b> cambiar arma</div>
+      <div><b>M</b> música</div>
+    </div>
+    <p class="tip">Los zombis rompen las tablas de las ventanas para entrar: mantén <b>E</b> cerca de una ventana para repararla. Dispara a la cabeza para hacer mucho más daño.</p>
+  </div>
+
+  <div id="pause" class="overlay hidden">
+    <h2>PAUSA</h2>
+    <p>Haz clic para continuar</p>
+  </div>
+
+  <div id="gameover" class="overlay hidden">
+    <h1>TE ATRAPARON</h1>
+    <div class="stats" id="stats"></div>
+    <button id="again">JUGAR DE NUEVO</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
