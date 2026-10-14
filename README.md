@@ -15,7 +15,20 @@ Motor propio en **C++17 sobre raylib**: renderizado PBR, sombras dinámicas, HDR
 
 *Sobreviví todas las rondas que puedas. Cada ronda, más zombis. Cada ronda, más rápidos.*
 
+### [⬇️ Descargar para Windows](https://github.com/FrankDesarrollo/ultima-ronda/releases/latest/download/UltimaRonda-Windows.zip)
+
 </div>
+
+---
+
+## ⬇️ Descargar y jugar
+
+1. Bajá **[UltimaRonda-Windows.zip](https://github.com/FrankDesarrollo/ultima-ronda/releases/latest/download/UltimaRonda-Windows.zip)** (≈110 MB) desde la sección [Releases](https://github.com/FrankDesarrollo/ultima-ronda/releases).
+2. Descomprimilo en cualquier carpeta (clic derecho → *Extraer todo*).
+3. Abrí `UltimaRonda.exe`. No hace falta instalar nada.
+   - Si Windows muestra *"Windows protegió su PC"*, tocá **Más información → Ejecutar de todas formas** (aparece porque el juego no está firmado).
+
+Requisitos: Windows 10 u 11 de 64 bits y una placa de video con OpenGL 3.3.
 
 ---
 
