@@ -88,7 +88,7 @@ static const MapDef MAPS[4] = {
         { 40, -11, 0.8f, 0.25f, 1.0f, "tomb" }, { 50, -11, 0.8f, 0.25f, 1.0f, "tomb" }, { 60, -11, 0.8f, 0.25f, 1.0f, "tomb" },
         { 45, -4, 0.8f, 0.25f, 1.0f, "tomb" }, { 53, -4, 0.8f, 0.25f, 1.0f, "tomb" }, { 41, 5, 0.8f, 0.25f, 1.0f, "tomb" }, { 49, 5, 0.8f, 0.25f, 1.0f, "tomb" },
         { 61, 5, 0.8f, 0.25f, 1.0f, "tomb" }, { 52, 12, 0.8f, 0.25f, 1.0f, "tomb" }, { 58, 18, 0.8f, 0.25f, 1.0f, "tomb" }, { 40, 12, 0.8f, 0.25f, 1.0f, "tomb" },
-        { 56, -4, 2.2f, 1.2f, 1.4f, "metal" }, { 38, 22, 0.6f, 0.6f, 7, "tree" }, { 62, -22, 0.6f, 0.6f, 7, "tree" }, { 62, 21, 0.6f, 0.6f, 6, "tree" },
+        { 56, -4, 2.2f, 1.2f, 1.4f, "metal" }, { 38, 22, 0.6f, 0.6f, 7, "deadtree" }, { 62, -22, 0.6f, 0.6f, 7.5f, "deadtree" }, { 62, 21, 0.6f, 0.6f, 6.5f, "deadtree" }, { 36.5f, -6, 0.6f, 0.6f, 6, "deadtree" },
         // casa
         { -25, -4, 2.2f, 1.1f, 0.9f, "pew" }, { -31, 6, 1.2f, 1.2f, 1.2f, "crate" }, { -19, -7, 0.8f, 0.8f, 1.1f, "barrel" },
         // estación: contenedores, auto y sacos
@@ -496,8 +496,65 @@ static void BuildLink(int li) {
 struct DynProp { int prop, col, solid; Vector3 pos, vel; float w, d, h, yaw, spin; bool barrel, awake; };
 static std::vector<DynProp> dynProps;
 
+// ---------- Árboles de verdad ("Trees" y "Dead Trees" CC0 de Quaternius) ----------
+// Cada archivo trae varias variantes en fila; se separan, se centran y se escalan a la altura pedida.
+struct TreeVariant { std::vector<std::pair<Mesh *, PMat *>> parts; Vector3 base; float height; };
+static std::vector<TreeVariant> treeKinds[2];   // 0: con hojas, 1: secos
+static PMat *ModelMat(const Material &src) {
+    PMat *pm = new PMat(M("wood"));
+    MaterialMap *maps = (MaterialMap *)MemAlloc(sizeof(MaterialMap) * 12 /* MAX_MATERIAL_MAPS de raylib */);
+    memcpy(maps, pm->m.maps, sizeof(MaterialMap) * 12);
+    pm->m.maps = maps;
+    pm->m.maps[MATERIAL_MAP_ALBEDO].texture = src.maps[MATERIAL_MAP_ALBEDO].texture.id ? src.maps[MATERIAL_MAP_ALBEDO].texture : texWhite;
+    pm->m.maps[MATERIAL_MAP_ALBEDO].color = WHITE;
+    pm->m.maps[MATERIAL_MAP_NORMAL].texture = src.maps[MATERIAL_MAP_NORMAL].texture.id ? src.maps[MATERIAL_MAP_NORMAL].texture : texFlat;
+    pm->m.maps[MATERIAL_MAP_ROUGHNESS].texture = texWhite;
+    pm->metal = 0; pm->rough = 0.95f; pm->nstr = 1;
+    return pm;
+}
+static void LoadTrees() {
+    static bool done = false;
+    if (done) return;
+    done = true;
+    const char *files[2] = { "assets/models/trees.glb", "assets/models/deadtrees.glb" };
+    for (int k = 0; k < 2; k++) {
+        if (!FileExists(files[k])) continue;
+        Model *m = new Model(LoadModel(files[k]));
+        void ComputeTangents(Mesh &m, bool dxNormals);
+        std::vector<PMat *> mats;
+        for (int i = 0; i < m->materialCount; i++) mats.push_back(ModelMat(m->materials[i]));
+        // las variantes están separadas en X: se agrupan las mallas que se solapan
+        for (int i = 0; i < m->meshCount; i++) {
+            ComputeTangents(m->meshes[i], false);
+            BoundingBox b = GetMeshBoundingBox(m->meshes[i]);
+            float cx = (b.min.x + b.max.x) / 2;
+            TreeVariant *tv = nullptr;
+            for (auto &v : treeKinds[k]) if (fabsf(v.base.x - cx) < 1.6f) tv = &v;
+            if (!tv) { treeKinds[k].push_back(TreeVariant{ {}, Vector3{ cx, b.min.y, (b.min.z + b.max.z) / 2 }, 0 }); tv = &treeKinds[k].back(); }
+            tv->parts.push_back({ &m->meshes[i], mats[m->meshMaterial[i]] });
+            tv->height = std::max(tv->height, b.max.y - tv->base.y);
+        }
+        // fuera los muy bajitos (tocones)
+        treeKinds[k].erase(std::remove_if(treeKinds[k].begin(), treeKinds[k].end(), [](const TreeVariant &v) { return v.height < 4; }), treeKinds[k].end());
+    }
+}
+static bool BuildModelTree(const PropDef &p, int kind) {
+    LoadTrees();
+    auto &kinds = treeKinds[kind];
+    if (kinds.empty()) return false;
+    int vi = (int)(fabsf(p.x * 7.3f + p.z * 3.1f)) % (int)kinds.size();
+    const TreeVariant &v = kinds[vi];
+    float s = p.h / v.height, ry = fmodf(p.x * 1.7f + p.z * 0.9f, 2 * PI_F);
+    Matrix tf = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-v.base.x, -v.base.y, -v.base.z), MatrixScale(s, s, s)), MatrixRotateY(ry)), MatrixTranslate(p.x, 0, p.z));
+    for (auto &part : v.parts) props.push_back({ part.first, part.second, tf });
+    AddSolidBox(Vector3{ p.x - p.w / 2, 0, p.z - p.d / 2 }, Vector3{ p.x + p.w / 2, p.h * 0.6f, p.z + p.d / 2 }, true);
+    return true;
+}
+
 // Objetos compuestos del mapa al aire libre: autos, sacos, lápidas, bancos, árboles y la fuente
 static bool BuildFancyProp(const PropDef &p) {
+    if (!strcmp(p.type, "tree") && BuildModelTree(p, 0)) return true;
+    if (!strcmp(p.type, "deadtree") && (BuildModelTree(p, 1) || BuildModelTree(p, 0))) return true;
     auto add = [](Mesh *mesh, PMat *mat, Vector3 pos, Vector3 size, float ry = 0) { props.push_back({ mesh, mat, TRSm(pos, ry, size) }); };
     auto solid = [&](float top, bool climb) {
         AddSolidBox(Vector3{ p.x - p.w / 2, 0, p.z - p.d / 2 }, Vector3{ p.x + p.w / 2, top, p.z + p.d / 2 }, true);

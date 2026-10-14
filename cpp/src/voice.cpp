@@ -7,6 +7,24 @@ static std::vector<Sound> lines[V_COUNT];
 static int lastLine[V_COUNT];
 static Sound *speaking = nullptr;
 static float nextSay = 0;
+// Lo que dice cada archivo (para los subtítulos), en el mismo orden que jug_<tipo><n>.wav
+static const std::vector<const char *> TEXTS[V_COUNT] = {
+    { "¡Maldito!", "¡Suéltame, bicho asqueroso!", "¡Quítate de encima, cadáver!", "¡Me mordió! ¡Desgraciado!", "¡Vuelve a tu tumba, carroña!", "¡Malditos podridos!" },
+    { "Otro menos.", "¡Vengan por más!", "¿Eso es todo lo que tienen?", "¡Al suelo, podrido!", "Descansa en pedazos." },
+    { "¡Directo a la cabeza!", "¡Tiro limpio!", "¡Bum! ¡Sin cabeza!" },
+    { "¡Recargando!", "¡Cúbranme, recargo!" },
+    { "Aquí vienen otra vez.", "Ronda nueva. Que vengan.", "No se cansan nunca..." },
+    { "¿Perros? ¡Esto se pone feo!", "¡Oigo ladridos! ¡Atentos!" },
+    { "¡Estoy herido! ¡Necesito aire!", "No voy a morir aquí..." },
+    { "¡Me quedo sin balas!", "Necesito munición." },
+};
+static const char *subText = nullptr;
+static float subUntil = 0;
+const char *VoiceSubtitle(float &alpha) {
+    if (!subText || T > subUntil) return nullptr;
+    alpha = clampf((subUntil - T) / 0.3f, 0, 1);
+    return subText;
+}
 
 void LoadVoiceLines() {
     if (!IsAudioDeviceReady()) return;
@@ -20,7 +38,7 @@ void LoadVoiceLines() {
     }
 }
 
-void ResetVoiceLines() { nextSay = 3; speaking = nullptr; }
+void ResetVoiceLines() { nextSay = 3; speaking = nullptr; subText = nullptr; }
 
 void Say(int kind, float chance) {
     if (game.state != GS_PLAYING || Practice() || lines[kind].empty()) return;
@@ -34,5 +52,6 @@ void Say(int kind, float chance) {
     speaking = &lines[kind][i];
     SetSoundVolume(*speaking, clampf(opts.sfx, 0, 1));
     PlaySound(*speaking);
+    if (i < (int)TEXTS[kind].size()) { subText = TEXTS[kind][i]; subUntil = T + (float)speaking->frameCount / speaking->stream.sampleRate + 0.6f; }
     nextSay = T + 6 + frand(0, 5);
 }

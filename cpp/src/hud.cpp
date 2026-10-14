@@ -168,6 +168,16 @@ void DrawHUD() {
     DrawRectangle((int)hx, (int)hy, (int)(240 * s), (int)(10 * s), Color{ 0, 0, 0, 140 });
     DrawRectangleGradientH((int)hx, (int)hy, (int)(240 * s * clampf(player.health / player.maxHealth, 0, 1)), (int)(10 * s), Color{ 138, 0, 0, 255 }, Color{ 232, 48, 48, 255 });
     DrawRectangleLines((int)hx, (int)hy, (int)(240 * s), (int)(10 * s), Color{ 255, 255, 255, 90 });
+    Text(fontUI, "SGTO. FRANK", hx, hy + 14 * s, 17 * s, Color{ 200, 210, 170, 220 }, 0, 1);
+    // lo que va diciendo Frank
+    float sa = 0;
+    if (const char *sub = VoiceSubtitle(sa)) {
+        unsigned char a = (unsigned char)(sa * 255);
+        float sy = Hh * 0.8f, fs = 26 * s;
+        float tw = MeasureTextEx(fontUI, sub, fs, 1).x;
+        Text(fontUI, "FRANK:", W / 2.0f - tw / 2 - 10 * s, sy + 3 * s, 20 * s, Color{ 150, 210, 120, a }, 1, 2);
+        Text(fontUI, sub, W / 2.0f, sy, fs, Color{ 245, 245, 245, a }, 0.5f, 2);
+    }
     int pi = 0;
     for (int k = 0; k < P_COUNT; k++) {
         if (!HasPerk(player, k)) continue;

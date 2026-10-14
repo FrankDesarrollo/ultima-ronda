@@ -322,3 +322,8 @@ enum VoiceKind { V_HURT, V_KILL, V_HEAD, V_RELOAD, V_ROUND, V_DOGS, V_LOWHP, V_N
 void LoadVoiceLines();
 void ResetVoiceLines();
 void Say(int kind, float chance = 1);   // chance: probabilidad de que hable
+const char *VoiceSubtitle(float &alpha);   // lo que está diciendo Frank ahora (o nullptr)
+
+// ---------- Frank en la cinemática (zombie.cpp) ----------
+struct SoldierView { bool visible = false; Vector3 pos{}; float yaw = 0; int clip = C_WALK; float t = 0; };
+extern SoldierView soldierView;   // clip: C_WALK correr con arma, C_ATTACK apuntar, C_IDLE quieto

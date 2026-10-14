@@ -94,6 +94,9 @@ Todos los recursos externos son libres (CC0 u OFL):
 
 - **Zombi y animaciones**: "Male City Zombie" de Rikindle3D (OpenGameArt)
 - **Perro del infierno**: "Wolf" de Quaternius (poly.pizza)
+- **Frank (soldado de la cinemática)**: "Character Soldier" de Quaternius (poly.pizza)
+- **Árboles**: "Trees" y "Dead Trees" de Quaternius (poly.pizza)
+- **Camuflaje de las mangas**: "Camouflage 8" de [ShareTextures](https://sharetextures.com); **cuero de los guantes**: Leather037 de ambientCG
 - **Texturas**: [ambientCG](https://ambientcg.com)
 - **Armas y granada**: "Guns & Explosives" de 3DModelsCC0
 - **Sonidos**: The Free Firearm Sound Library, SpringySpringo, zer0_sol, artisticdude, Darsycho y pauliuw (OpenGameArt)

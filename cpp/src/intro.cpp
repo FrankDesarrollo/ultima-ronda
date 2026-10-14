@@ -9,6 +9,8 @@ static float INTRO_LEN = 10.6f;
 static float introT = 0, nextStep = 0;
 static bool groaned = false;
 static Vector3 outFrom, outTo, outLook;   // toma 1
+static Vector3 frankFrom, frankTo; static Vector2 outDir{ 0, 0 };   // Frank corre hasta la ventana
+static const float FRANK_RUN = 3.4f;     // segundos que tarda en llegar
 static Vector3 roomC; float roomR = 4;    // toma 2: órbita sobre el centro de la sala
 static float orbitA0 = 0, orbitH0 = 3.4f, orbitH1 = 2.7f;   // al aire libre la toma va mucho más alta
 static Vector3 eyePos, eyeLook;           // toma 3: los ojos del jugador
@@ -22,11 +24,11 @@ static std::string voicesMap;
 struct IntroText { const char *place; const char *subs[4]; };
 static IntroText TextFor(const std::string &key) {
     if (key == "pueblo") return { "PUEBLO DE SAN ROQUE · 02:13",
-        { "Base, aquí unidad siete. Entramos al pueblo.", "Las calles están vacías... demasiado vacías.", "Hay tumbas abiertas en el cementerio.", "Que Dios nos ayude. Ya vienen." } };
+        { "Base, aquí Frank. Entramos al pueblo.", "Las calles están vacías... demasiado vacías.", "Hay tumbas abiertas en el cementerio.", "Que Dios nos ayude. Ya vienen." } };
     if (key == "fabrica") return { "FÁBRICA ABANDONADA · AFUERAS DE LA CIUDAD",
-        { "Base, aquí unidad siete. Llegamos a la fábrica.", "No queda nadie... o eso parece.", "Escucho pasos. No estamos solos.", "Prepárate. Ya vienen." } };
+        { "Base, aquí Frank. Llegamos a la fábrica.", "No queda nadie... o eso parece.", "Escucho pasos. No estamos solos.", "Prepárate. Ya vienen." } };
     return { "BÚNKER 7 · 23:47",
-        { "Base, aquí unidad siete. Llegamos al búnker.", "Algo se mueve ahí dentro.", "Tapen las ventanas. No dejen que entren.", "Aguanta. Cambio y fuera." } };
+        { "Base, aquí Frank. Llegamos al búnker.", "Algo se mueve ahí dentro.", "Tapen las ventanas. No dejen que entren.", "Aguanta. Cambio y fuera." } };
 }
 
 static void LoadVoices(const std::string &key) {
@@ -87,6 +89,9 @@ void StartIntro() {
     if (!windows.empty()) {
         const Window &w = windows[wi];
         outLook = Vector3{ w.x, 1.65f, w.z };
+        outDir = Vector2{ (float)w.nx, (float)w.nz };   // de afuera hacia la ventana
+        frankFrom = Vector3{ w.x - w.nx * 13.0f, 0, w.z - w.nz * 13.0f };
+        frankTo = Vector3{ w.x - w.nx * 1.7f, 0, w.z - w.nz * 1.7f };
         outFrom = Vector3{ w.x - w.nx * 8.0f, 1.75f, w.z - w.nz * 8.0f };
         outTo = Vector3{ w.x - w.nx * 2.4f, 1.65f, w.z - w.nz * 2.4f };
     } else {
@@ -102,6 +107,7 @@ void StartIntro() {
 }
 
 static void EndIntro() {
+    soldierView.visible = false;
     game.state = GS_PLAYING;
     StopVoices();
     Play("door", 0.9f);
@@ -118,15 +124,27 @@ void UpdateIntro(float dt) {
             PlaySound(voices[i].snd);
         }
     Vector3 pos, look;
-    if (introT < SHOT1) {
-        // pasos lentos en la oscuridad, con la cámara al hombro
+    soldierView.visible = false;
+    if (introT < SHOT1 && (outDir.x != 0 || outDir.y != 0)) {
+        // Frank corre con el fusil hasta la ventana y se queda apuntando; la cámara va detrás, sobre el hombro
+        float rk = clampf(introT / FRANK_RUN, 0, 1);
+        float ease = 1 - (1 - rk) * (1 - rk);
+        Vector3 fp = Vector3Lerp(frankFrom, frankTo, ease);
+        bool running = rk < 0.97f;
+        soldierView = SoldierView{ true, fp, atan2f(outDir.x, outDir.y), running ? C_WALK : C_ATTACK, running ? introT : introT - FRANK_RUN };
+        Vector3 f{ outDir.x, 0, outDir.y }, side{ -outDir.y, 0, outDir.x };
+        float push = Smooth((introT - FRANK_RUN) / (SHOT1 - FRANK_RUN));   // al pararse, la cámara se acerca y se abre
+        float back = lerpf(3.0f, 2.1f, push), lat = lerpf(0.75f, 1.25f, push);
+        pos = Vector3Add(fp, Vector3Add(Vector3Scale(f, -back), Vector3Scale(side, lat)));
+        pos.y = 1.95f + sinf(introT * 9.0f) * 0.03f * (running ? 1 : 0.2f);
+        look = Vector3Add(fp, Vector3Add(Vector3Scale(f, 6), Vector3{ 0, 1.3f, 0 }));
+        if (running && introT > nextStep) { Play("step", 0.4f); nextStep = introT + 0.32f; }
+        if (!groaned && introT > SHOT1 - 1.4f) { groaned = true; Play("groan", 0.8f); }
+    } else if (introT < SHOT1) {
+        // sin ventanas: pasos lentos en la oscuridad, con la cámara al hombro
         float k = Smooth(introT / SHOT1);
         pos = Vector3Lerp(outFrom, outTo, k);
-        pos.y += sinf(introT * 7.0f) * 0.035f;
-        pos.x += sinf(introT * 1.3f) * 0.05f;
-        look = Vector3Add(outLook, Vector3{ sinf(introT * 0.9f) * 0.15f, cosf(introT * 1.1f) * 0.08f, 0 });
-        if (introT > nextStep && introT < SHOT1 - 0.6f) { Play("step", 0.35f); nextStep += 0.55f; }
-        if (!groaned && introT > SHOT1 - 1.4f) { groaned = true; Play("groan", 0.8f); }
+        look = outLook;
     } else if (introT < SHOT2) {
         OrbitPose((introT - SHOT1) / (SHOT2 - SHOT1), pos, look);
     } else {
@@ -197,7 +215,7 @@ void DrawIntro() {
         if (k < 0 || k > v.len + 0.2f) continue;
         float a = Smooth(k / 0.15f) * (1 - Smooth((k - v.len) / 0.2f));
         float y = Hh - bh / 2 - 16 * s;
-        IText(fontUI, "RADIO ·", W / 2.0f - MeasureTextEx(fontUI, v.sub, 30 * s, 1).x / 2 - 12 * s, y + 4 * s, 22 * s, Color{ 120, 200, 120, (unsigned char)(a * 220) }, 1, 2);
+        IText(fontUI, "FRANK ·", W / 2.0f - MeasureTextEx(fontUI, v.sub, 30 * s, 1).x / 2 - 12 * s, y + 4 * s, 22 * s, Color{ 120, 200, 120, (unsigned char)(a * 220) }, 1, 2);
         IText(fontUI, v.sub, W / 2.0f, y, 30 * s, Color{ 240, 240, 240, (unsigned char)(a * 255) }, 0.5f);
     }
     if (introT > 0.8f && introT < INTRO_LEN - 0.8f)

@@ -421,9 +421,9 @@ void LoadMaterials() {
     NewMat("wood", crate.m.maps[MATERIAL_MAP_ALBEDO].texture, crate.m.maps[MATERIAL_MAP_NORMAL].texture, crate.m.maps[MATERIAL_MAP_ROUGHNESS].texture, Color{ 150, 95, 55, 255 }, 0, 0.7f, 0.5f);
     PMat &camo = NewMat("camo", texCamo, metal.m.maps[MATERIAL_MAP_NORMAL].texture, metal.m.maps[MATERIAL_MAP_ROUGHNESS].texture, WHITE, 0.5f, 0.6f, 0.4f);
     camo.emis = Vector3{ 0.12f, 0.0f, 0.25f }; camo.uvScroll = 0.15f;
-    NewMat("glove", texWhite, metal.m.maps[MATERIAL_MAP_NORMAL].texture, metal.m.maps[MATERIAL_MAP_ROUGHNESS].texture, Color{ 45, 35, 28, 255 }, 0, 1.0f, 0.3f);
+    TexMat("glove", "leather", Color{ 70, 58, 48, 255 }, 0, 0.8f, 1.0f);   // guantes de cuero de Frank
     PMat &planks = M("planks");
-    NewMat("sleeve", texWhite, planks.m.maps[MATERIAL_MAP_NORMAL].texture, planks.m.maps[MATERIAL_MAP_ROUGHNESS].texture, Color{ 70, 80, 52, 255 }, 0, 1.0f, 0.15f);
+    TexMat("sleeve", "camo", WHITE, 0, 1.0f, 0.8f);   // mangas de camuflaje woodland
     PMat &barrel = M("barrel");
     for (int i = 0; i < P_COUNT; i++) {
         char n[16]; snprintf(n, 16, "perk%d", i);
@@ -691,6 +691,11 @@ static void GatherLights() {
     }
     if (muzzleLightI > 0) frameLights.push_back({ muzzleLightPos, Vector3Scale(ColorV(vm.flashColor), muzzleLightI), 9, false, 0 });
     if (boomLightI > 0) frameLights.push_back({ boomLightPos, Vector3Scale(Vector3{ 1, 0.55f, 0.2f }, boomLightI), 18, false, 0.5f });
+    // cinemática: luz de luna sobre Frank para que se le vea en la oscuridad
+    if (soldierView.visible) {
+        Vector3 lp{ soldierView.pos.x - sinf(soldierView.yaw) * 1.2f + cosf(soldierView.yaw) * 1.5f, 3.2f, soldierView.pos.z - cosf(soldierView.yaw) * 1.2f - sinf(soldierView.yaw) * 1.5f };
+        frameLights.push_back({ lp, Vector3{ 4.5f, 5.2f, 7.0f }, 11, false, Vector3Distance(lp, cam.position) });
+    }
     // luz azul de la caja misteriosa abierta
     if (box.lid > 0.05f) frameLights.push_back({ Vector3{ box.pos.x, 1.3f, box.pos.y }, Vector3Scale(Vector3{ 0.5f, 0.8f, 1.6f }, box.lid * 3.0f), 6, false, Vector3Distance(Vector3{ box.pos.x, 1.3f, box.pos.y }, cam.position) });
     // las 2 luces que proyectan sombra más cercanas van primero

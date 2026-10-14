@@ -80,6 +80,82 @@ static void InitDogs() {
     dr.pose2.resize(dr.model.boneCount);
 }
 
+// ---------- Frank: soldado animado para la cinemática ("Character Soldier" CC0 de Quaternius) ----------
+// El cuerpo tiene piel animada; casco, hombreras y armas cuelgan de huesos y se mueven a mano.
+static Rig sr;
+static void SampleClip(const Rig &r, int c, float t, std::vector<Transform> &out);
+static void UploadPose(Rig &r);
+struct SoldierPart { int mesh, bone; PMat mat; };
+static std::vector<SoldierPart> soldierParts;
+static std::vector<int> soldierBody;   // mallas con piel
+static float soldierScale = 1;
+SoldierView soldierView;
+
+static void InitSoldier() {
+    const char *mp = "assets/models/soldier.glb";
+    if (!FileExists(mp)) return;
+    sr.model = LoadModel(mp);
+    if (!sr.model.meshCount || !sr.model.boneCount) return;
+    void ComputeTangents(Mesh &m, bool dxNormals);
+    for (int i = 0; i < sr.model.meshCount; i++) ComputeTangents(sr.model.meshes[i], false);
+    // qué malla cuelga de qué hueso (orden de los nodos del glTF): cabeza 0-2, hombreras 3-4, AK 41-44, cuerpo 55-59
+    struct Range { int a, b; const char *bone; };
+    const Range rigid[] = { { 0, 2, "Head" }, { 3, 3, "UpperArm.L" }, { 4, 4, "UpperArm.R" }, { 41, 44, "Index1.R" } };
+    for (auto &rg : rigid)
+        for (int i = rg.a; i <= rg.b && i < sr.model.meshCount; i++) {
+            SoldierPart p{ i, FindBone(sr.model, rg.bone), PMat{} };
+            p.mat.m = LoadMaterialDefault();
+            p.mat.m.shader = shLit;
+            p.mat.m.maps[MATERIAL_MAP_ALBEDO].texture = texWhite;
+            p.mat.m.maps[MATERIAL_MAP_ALBEDO].color = sr.model.materials[sr.model.meshMaterial[i]].maps[MATERIAL_MAP_ALBEDO].color;
+            p.mat.m.maps[MATERIAL_MAP_NORMAL].texture = texFlat;
+            p.mat.m.maps[MATERIAL_MAP_ROUGHNESS].texture = texWhite;
+            p.mat.rough = 0.85f;
+            soldierParts.push_back(p);
+        }
+    for (int i = 55; i < sr.model.meshCount; i++) soldierBody.push_back(i);
+    for (int i = 0; i < sr.model.materialCount; i++) {
+        Material &mt = sr.model.materials[i];
+        mt.shader = shLitSkin;
+        mt.maps[MATERIAL_MAP_ALBEDO].texture = texWhite;
+        mt.maps[MATERIAL_MAP_NORMAL].texture = texFlat;
+        mt.maps[MATERIAL_MAP_ROUGHNESS].texture = texWhite;
+    }
+    BoundingBox bb = GetMeshBoundingBox(sr.model.meshes[56]);
+    soldierScale = 1.8f / std::max(0.5f, bb.max.y - bb.min.y);
+    const char *names[C_COUNT] = { "Run_Gun", "Run", "Idle_Shoot", "Death", "Idle", "Wave", "HitReact" };
+    for (int c = 0; c < C_COUNT; c++) BakeAnimation(sr.model, mp, mp, sr.fps, true, &sr.clips[c], names[c]);
+    for (int c = 0; c < C_COUNT; c++) sr.loop[c] = c != C_DIE;
+    if (!LoadInverseBind(mp, sr.invBind) || (int)sr.invBind.size() != sr.model.boneCount) sr.invBind.clear();
+    sr.pose.resize(sr.model.boneCount);
+    sr.pose2.resize(sr.model.boneCount);
+}
+
+static Matrix PoseMatrix(const Transform &p) {
+    return MatrixMultiply(MatrixMultiply(MatrixScale(p.scale.x, p.scale.y, p.scale.z), QuaternionToMatrix(p.rotation)), MatrixTranslate(p.translation.x, p.translation.y, p.translation.z));
+}
+
+static void DrawSoldier() {
+    const SoldierView &v = soldierView;
+    if (!v.visible || !sr.model.meshCount) return;
+    SampleClip(sr, v.clip, v.t, sr.pose);
+    UploadPose(sr);
+    float s = soldierScale;
+    Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixRotateY(v.yaw)), MatrixTranslate(v.pos.x, v.pos.y, v.pos.z));
+    for (int i : soldierBody) {
+        if (depthPass) { DrawMesh(sr.model.meshes[i], DepthMatSkin(), m); continue; }
+        SetSkinParams(0, 0.9f, 0, Vector3{ 0, 0, 0 }, 0);
+        DrawMesh(sr.model.meshes[i], sr.model.materials[sr.model.meshMaterial[i]], m);
+    }
+    // piezas rígidas: de la pose de reposo del hueso a su pose animada
+    for (auto &p : soldierParts) {
+        Matrix bind = PoseMatrix(sr.model.bindPose[p.bone]), now = PoseMatrix(sr.pose[p.bone]);
+        Matrix tf = MatrixMultiply(MatrixMultiply(MatrixInvert(bind), now), m);
+        DrawPM(sr.model.meshes[p.mesh], p.mat, tf);
+    }
+    if (!depthPass) SetSkinParams(0, 1, 1, Vector3{ 0, 0, 0 }, 0);
+}
+
 void InitZombies() {
     std::string mp = std::string(ZDIR) + "InfectedCityMan.glb";
     Model &zModel = zr.model;
@@ -118,6 +194,7 @@ void InitZombies() {
     zr.pose.resize(zModel.boneCount);
     zr.pose2.resize(zModel.boneCount);
     InitDogs();
+    InitSoldier();
 }
 
 // ---------- Poses ----------
@@ -203,6 +280,7 @@ static void SetClip(Zombie &z, int c, bool randomStart = false) {
 }
 
 void DrawZombies() {
+    DrawSoldier();
     for (auto &z : zombies) {
         if (Vector3Distance(z.pos, cam.position) > 45) continue;
         if (z.state == Z_RISE && (z.y < -1.85f || z.dog)) continue;   // perro: aún no ha llegado (rayo)

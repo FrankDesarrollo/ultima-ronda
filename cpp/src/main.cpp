@@ -987,7 +987,7 @@ static int RunMapShots(const char *mapKey, const char *outPrefix) {
     player.points = 0;
     struct View { float x, z, yaw, pitch; const char *name; };
     const View views[] = { { 0, 12, 0, 0.05f, "plaza" }, { 0, 12, 0.6f, 0.75f, "cielo" }, { 0, -20, 0, 0, "calle" },
-                           { 38, 0, -1.57f, 0, "cementerio" }, { 30, 0, 1.57f, 0, "iglesia" }, { -12, 22, -2.3f, 0.02f, "estacion" }, { -20, -20, 2.4f, 0, "taller" } };
+                           { 38, 0, -1.57f, 0, "cementerio" }, { 30, 0, 1.57f, 0, "iglesia" }, { -12, 22, -2.3f, 0.02f, "estacion" }, { -20, -20, 2.4f, 0, "taller" }, { -6, 10, 0.9f, 0.15f, "arbol" }, { 45, 5, 2.75f, 0.12f, "arbolseco" } };
     for (auto &v : views) {
         player.pos = Vector3{ v.x, 0, v.z }; player.yaw = v.yaw; player.pitch = v.pitch; player.vel = Vector3{ 0, 0, 0 };
         for (int i = 0; i < 10; i++) Update(0.05f);
