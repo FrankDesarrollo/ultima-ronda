@@ -28,7 +28,7 @@ Hecho desde cero en **C++ con raylib**: renderizado PBR, sombras, ragdolls y aud
 ## ✨ Características
 
 - 🗺️ **Dos mapas**: **Búnker** (pasillos estrechos) y **Fábrica** (mapa grande), cada uno con 5 zonas que se desbloquean con puntos, y un **Campo de tiro** para probar todas las armas gratis.
-- 🎬 **Cinemática de llegada** en cada mapa: te acercás de noche a una ventana, la cámara recorre la sala y baja hasta tus ojos (se salta con `Espacio`).
+- 🎬 **Cinemática de llegada** en cada mapa, con un soldado hablando por radio y subtítulos: te acercás de noche a una ventana, la cámara recorre la sala y baja hasta tus ojos (se salta con `Espacio`).
 - 🔫 **16 armas**, de pistolas a lanzamisiles, incluidas las **armas maravilla** que solo salen en la caja: Pistola de rayos, Wunderwaffe DG-2 (rayos en cadena) y Cañón de trueno.
 - 🎁 **Caja misteriosa** (950) con su osito que la hace mudarse, y **Pack-a-Punch** (5000) para mejorar cualquier arma con nombre nuevo.
 - 🥤 **Bebidas**: Quick Revive, Juggernog, Speed Cola, Double Tap y Pola Veloz.
