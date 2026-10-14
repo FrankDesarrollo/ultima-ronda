@@ -267,12 +267,12 @@ void UpdateMusic() {
     if (trackMainOk) {
         if (!IsMusicStreamPlaying(trackMain)) PlayMusicStream(trackMain);
         UpdateMusicStream(trackMain);
-        SetMusicVolume(trackMain, mv * (inGame ? 0.55f : 0.8f));
+        SetMusicVolume(trackMain, mv * (inGame ? 0.55f : game.state == GS_INTRO ? 0.3f : 0.8f));   // en la cinemática, más baja para oír la radio
     }
     if (trackAmbOk) {
         if (!IsMusicStreamPlaying(trackAmb)) PlayMusicStream(trackAmb);
         UpdateMusicStream(trackAmb);
-        SetMusicVolume(trackAmb, mv * (inGame ? 0.45f : 0.25f));
+        SetMusicVolume(trackAmb, mv * (inGame || game.state == GS_INTRO ? 0.45f : 0.25f));
     }
     if (!IsSoundPlaying(music)) PlaySound(music);
     SetSoundVolume(music, mv * tensionK);

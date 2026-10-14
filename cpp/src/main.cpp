@@ -968,7 +968,7 @@ static int RunTest(const char *mapKey, const char *outPrefix) {
 static int RunIntroTest(const char *mapKey, const char *outPrefix) {
     RenderTexture2D rt = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
     ResetGame(mapKey);
-    const float shots[] = { 1.5f, 3.6f, 5.0f, 7.0f, 9.3f, 10.4f };
+    const float shots[] = { 1.5f, 4.5f, 8.5f, 10.5f, 12.8f, 14.0f };
     float t = 0; int si = 0;
     while (game.state == GS_INTRO && si < 6) {
         UpdateIntro(0.05f); UpdateWorld(0.05f); t += 0.05f;
