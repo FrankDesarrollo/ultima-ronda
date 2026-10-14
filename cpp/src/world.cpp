@@ -18,7 +18,7 @@ struct MapDef {
     bool outdoor = false;              // al aire libre: sin techo, con cielo
 };
 
-static const MapDef MAPS[4] = {
+static const MapDef MAPS[7] = {
     { "bunker", "BÚNKER", "bunker", 0, 4, 0, "A",
       { { "A", -10, -10, 10, 10, 0xffd9a0, false, {} }, { "B", -10, -26, 10, -10, 0xffc890, true, {} }, { "C", 10, -8, 28, 8, 0xaaccff, false, {} },
         { "D", -10, 10, 10, 26, 0xff9a9a, false, {} }, { "E", 10, -26, 28, -8, 0xc8a0ff, false, {} } },
@@ -26,7 +26,7 @@ static const MapDef MAPS[4] = {
       { { "A", -10, -5 }, { "A", -10, 5 }, { "B", -10, -18 }, { "B", 0, -26 }, { "C", 28, 0 }, { "C", 19, 8 },
         { "D", -10, 18 }, { "D", 0, 26 }, { "D", 10, 18 }, { "E", 19, -26 }, { "E", 28, -17 } },
       { { "A", W_SHOTGUN, -6, -10 }, { "A", W_SMG, 6, 10 }, { "B", W_RIFLE, -10, -22 }, { "E", W_SNIPER, 28, -11 }, { "C", W_LAUNCHER, 14, -8 }, { "D", W_RPG, -6, 26 },
-        { "B", W_SAWED, 10, -14 }, { "D", W_SUOMI, 10, 22 } },
+        { "B", W_SAWED, 10, -14 }, { "D", W_THOMPSON, 10, 22 } },
       { { "A", P_REVIVE, 10, -6 }, { "B", P_JUGG, 6, -26 }, { "C", P_SPEED, 28, -5 }, { "D", P_DOUBLE, 6, 26 }, { "A", P_STAMIN, -10, -1 } },
       { { "A", -5, 10 }, { "B", -5, -26 }, { "C", 23, 8 }, { "D", 10, 23 } },
       { "E", 24, -26 },
@@ -43,7 +43,7 @@ static const MapDef MAPS[4] = {
       { { "B", -18, -16 }, { "B", 0, -16 }, { "B", 18, -16 }, { "C", -24, -2 }, { "C", -24, 8 }, { "D", 24, -2 }, { "D", 24, 8 },
         { "E", -14, 30 }, { "E", 0, 30 }, { "E", 14, 30 }, { "E", -24, 21 }, { "E", 24, 21 } },
       { { "A", W_SHOTGUN, 8, 4 }, { "A", W_SMG, -5, -8 }, { "B", W_RIFLE, 6, -16 }, { "D", W_SNIPER, 11, -8 }, { "E", W_LMG, -24, 15 }, { "C", W_LAUNCHER, -24, -6 }, { "E", W_RPG, 24, 16 },
-        { "C", W_SUOMI, -11, -8 }, { "D", W_SAWED, 20, 12 } },
+        { "C", W_GARAND, -11, -8 }, { "D", W_SAWED, 20, 12 } },
       { { "A", P_REVIVE, -8, 0 }, { "D", P_JUGG, 24, 3 }, { "C", P_SPEED, -21, 12 }, { "B", P_DOUBLE, -9, -16 }, { "A", P_STAMIN, 8, 9 } },
       { { "A", -4, 12 }, { "B", 9, -16 }, { "C", -24, 3 }, { "E", -6, 30 } },
       { "E", 6, 30 },
@@ -69,7 +69,7 @@ static const MapDef MAPS[4] = {
         { "D", 45, -25 }, { "D", 58, -25 }, { "D", 65, -10 }, { "D", 65, 12 }, { "D", 50, 25 }, { "E", -35, -4 }, { "E", -35, 6 }, { "E", -25, 10 },
         { "F", -15, 25 }, { "F", -15, 38 }, { "F", 0, 45 }, { "F", 20, 45 }, { "F", 35, 35 }, { "G", -45, -35 }, { "G", -45, -20 }, { "G", -30, -45 }, { "G", -40, -10 } },
       { { "A", W_SHOTGUN, -15, -12.5f }, { "A", W_SMG, 15, 10 }, { "B", W_RIFLE, 15, -35 }, { "B", W_SAWED, -6, -55 }, { "C", W_LAUNCHER, 25, 15 },
-        { "C", W_MAGNUM, 35, -10 }, { "D", W_SNIPER, 65, 0 }, { "D", W_RPG, 51, -25 }, { "E", W_LMG, -35, -8 }, { "F", W_SUOMI, 35, 40 }, { "G", W_FLARE, -45, -28 } },
+        { "C", W_MAGNUM, 35, -10 }, { "D", W_SNIPER, 65, 0 }, { "D", W_RPG, 51, -25 }, { "E", W_LMG, -35, -8 }, { "F", W_THOMPSON, 35, 40 }, { "G", W_FLARE, -45, -28 } },
       { { "A", P_REVIVE, 8, -15 }, { "C", P_JUGG, 35, 10 }, { "F", P_SPEED, -15, 32 }, { "G", P_DOUBLE, -32, -10 }, { "B", P_STAMIN, -15, -22 } },
       { { "A", -7, 15 }, { "B", -15, -38 }, { "D", 65, -18 }, { "F", 10, 45 } },
       { "D", 35, -20 },
@@ -100,14 +100,108 @@ static const MapDef MAPS[4] = {
       { { "A", -11, 1 }, { "A", 11, 0 }, { "A", 3, -10 }, { "B", 0, -38 }, { "B", -6, -52 }, { "D", 43, -15 }, { "D", 55, -8 }, { "D", 47, 9 },
         { "D", 60, 14 }, { "D", 39, 1 }, { "F", 6, 33 }, { "F", 26, 42 }, { "F", -6, 40 } },
       { "G", -45, -15 }, true },
+    // Hospital San Rafael: recepción, pasillo largo, pabellón, quirófano, morgue y archivo. Luz fría que parpadea.
+    { "hospital", "HOSPITAL", "hospital", 0, 3, 0, "A",
+      { { "A", -10, -8, 10, 8, 0xd8ecff, false, { { -5, 0 }, { 5, 0 } } },                                  // recepción
+        { "B", -24, 8, 24, 14, 0xc8e0ff, true, { { -16, 11 }, { 0, 11 }, { 16, 11 } } },                  // pasillo
+        { "C", -24, 14, -4, 32, 0xb8d8ff, true, { { -14, 19 }, { -14, 27 } } },                          // pabellón
+        { "D", 4, 14, 24, 32, 0xf0f8ff, false, { { 14, 19 }, { 14, 27 } } },                              // quirófano
+        { "E", -24, -8, -10, 8, 0x8ab0ff, true, {} },                                                     // morgue
+        { "F", 10, -8, 24, 8, 0xffe8c0, false, {} } },                                                    // archivo
+      { { "A", "B", 0, 8, 750 }, { "B", "C", -14, 14, 1000 }, { "B", "D", 14, 14, 1000 }, { "A", "E", -10, 0, 1000 }, { "A", "F", 10, 0, 1000 },
+        { "E", "B", -17, 8, 1250 }, { "F", "B", 20, 8, 1250 } },
+      { { "A", -5, -8 }, { "A", 5, -8 }, { "B", 0, 14 }, { "B", -24, 11 }, { "B", 24, 11 }, { "C", -24, 20 }, { "C", -24, 27 }, { "C", -14, 32 },
+        { "D", 24, 22 }, { "D", 10, 32 }, { "E", -24, -3 }, { "E", -17, -8 }, { "F", 24, 0 }, { "F", 17, -8 } },
+      { { "A", W_SHOTGUN, -6, 8 }, { "A", W_SMG, 10, -5 }, { "B", W_RIFLE, -21, 8 }, { "C", W_LMG, -4, 24 }, { "D", W_LAUNCHER, 4, 28 },
+        { "D", W_SNIPER, 24, 29 }, { "E", W_SAWED, -10, -5 }, { "F", W_RPG, 12, -8 }, { "F", W_GARAND, 10, 5 } },
+      { { "A", P_REVIVE, 0, -8 }, { "C", P_JUGG, -10, 32 }, { "D", P_SPEED, 4, 18 }, { "E", P_DOUBLE, -24, -6 }, { "F", P_STAMIN, 24, 5 } },
+      { { "A", -10, 5 }, { "C", -24, 30 }, { "D", 24, 17 }, { "F", 13, 8 } },
+      { "D", 18, 32 },
+      { { 0, -3.5f, 4, 1, 1.1f, "pew" }, { -6, -4, 1.2f, 1.2f, 1.2f, "crate" }, { 7, 4, 0.8f, 0.8f, 1.1f, "barrel" },
+        { -20, 17.5f, 2.2f, 1.0f, 0.75f, "bed" }, { -20, 22, 2.2f, 1.0f, 0.75f, "bed" }, { -20, 26.5f, 2.2f, 1.0f, 0.75f, "bed" },
+        { -8, 17.5f, 2.2f, 1.0f, 0.75f, "bed" }, { -8, 22, 2.2f, 1.0f, 0.75f, "bed" }, { -8, 29.5f, 2.2f, 1.0f, 0.75f, "bed" },
+        { 14, 23, 2.4f, 1.0f, 0.9f, "bed" }, { 19.5f, 26.5f, 1.4f, 0.7f, 1.1f, "console" }, { 9, 22, 0.8f, 0.8f, 1.1f, "barrel" },
+        { -22.5f, 1, 1.0f, 5.0f, 2.2f, "locker" }, { -15, -1, 2.2f, 1.0f, 0.9f, "bed" }, { -15, 4, 2.2f, 1.0f, 0.9f, "bed" },
+        { 15, -3, 3.5f, 0.6f, 2.0f, "locker" }, { 15, 2.5f, 3.5f, 0.6f, 2.0f, "locker" }, { 21, -5, 1.2f, 1.2f, 1.2f, "crate" },
+        { -10, 11, 1.2f, 1.2f, 1.2f, "crate" }, { 9, 11.5f, 2.2f, 1.0f, 0.75f, "bed" } },
+      {}, {}, { "F", 21, -8 } },
+    // Fuerte Reyes: base militar con un patio al aire libre, barracones, armería, hangar, sala de radio, despacho y portón.
+    { "base", "FUERTE REYES", "base", 0, 2, 0, "A",
+      { { "A", -20, -15, 20, 15, 0xffd9a0, false, { { -10, -8 }, { 10, -8 }, { -10, 8 }, { 10, 8 } }, true, "concfloor" },   // patio
+        { "B", -40, -15, -20, 5, 0xffc890, false, { { -30, -10 }, { -30, 0 } }, false, "planks" },                          // barracones
+        { "C", -40, 5, -20, 20, 0xffb070, true, {}, false, "concfloor" },                                                   // armería
+        { "D", 20, -25, 45, 15, 0xb0d0ff, false, { { 28, -15 }, { 38, -15 }, { 28, 5 }, { 38, 5 } }, false, "concfloor" },  // hangar
+        { "E", -10, 15, 10, 30, 0x9affc0, true, {}, false, "tiles" },                                                       // sala de radio
+        { "F", 10, 15, 28, 30, 0xff9a7a, false, {}, false, "planks" },                                                      // despacho de Reyes
+        { "G", -10, -30, 10, -15, 0xffd9a0, false, { { 0, -22 } }, true, "ground" } },                                      // portón
+      { { "A", "G", 0, -15, 750 }, { "A", "B", -20, -5, 1000 }, { "A", "C", -20, 10, 1000 }, { "B", "C", -30, 5, 750 }, { "A", "D", 20, 0, 1000 },
+        { "A", "E", 0, 15, 1000 }, { "E", "F", 10, 22, 1250 }, { "D", "F", 24, 15, 1250 } },
+      { { "A", -15, 15 }, { "A", -15, -15 }, { "A", 15, -15 }, { "B", -40, -10 }, { "B", -40, 0 }, { "B", -30, -15 }, { "C", -40, 12 }, { "C", -30, 20 },
+        { "D", 45, -15 }, { "D", 45, 5 }, { "D", 32, -25 }, { "D", 36, 15 }, { "E", 0, 30 }, { "E", -6, 30 }, { "F", 20, 30 }, { "F", 28, 22 },
+        { "G", -5, -30 }, { "G", 5, -30 } },
+      { { "A", W_SHOTGUN, -20, -12 }, { "A", W_SMG, 20, -10 }, { "B", W_RIFLE, -40, -5 }, { "C", W_LMG, -20, 18 }, { "C", W_RPG, -36, 20 },
+        { "D", W_SNIPER, 45, -5 }, { "D", W_LAUNCHER, 25, -25 }, { "E", W_SUOMI, -10, 20 }, { "F", W_THOMPSON, 28, 27 }, { "G", W_SAWED, -10, -25 } },
+      { { "A", P_REVIVE, -11, 15 }, { "B", P_JUGG, -25, -15 }, { "C", P_DOUBLE, -40, 8 }, { "D", P_SPEED, 20, -20 }, { "E", P_STAMIN, 10, 28 } },
+      { { "A", 11, -15 }, { "B", -35, 5 }, { "D", 45, 10 }, { "F", 15, 30 } },
+      { "F", 28, 17 },
+      { // patio: camión, sacos y cajas
+        { -9, 3, 2.6f, 6.0f, 2.8f, "truck" }, { 8, -6, 3.5f, 0.8f, 1.0f, "sandbag" }, { -6, -9, 0.8f, 3.0f, 1.0f, "sandbag" }, { 12, 8, 1.2f, 1.2f, 1.2f, "crate" },
+        { 13.2f, 8, 1.2f, 1.2f, 1.2f, "crate" }, { 12.6f, 8, 1.1f, 1.1f, 2.3f, "crate" }, { 16, -2, 0.8f, 0.8f, 1.1f, "barrel" }, { -15, -12, 0.8f, 0.8f, 1.1f, "barrel" },
+        // barracones: literas
+        { -36, -12, 2.2f, 1.0f, 0.75f, "bed" }, { -36, -7, 2.2f, 1.0f, 0.75f, "bed" }, { -36, -2, 2.2f, 1.0f, 0.75f, "bed" }, { -24, -11, 2.2f, 1.0f, 0.75f, "bed" },
+        { -24, 1, 1.0f, 3.0f, 2.0f, "locker" },
+        // armería
+        { -37, 14, 1.0f, 6.0f, 2.2f, "locker" }, { -28, 16, 4.0f, 1.0f, 1.0f, "pew" }, { -26, 9, 1.2f, 1.2f, 1.2f, "crate" }, { -24.8f, 9, 1.2f, 1.2f, 1.2f, "crate" },
+        // hangar
+        { 32, -5, 3.0f, 7.0f, 2.8f, "truck" }, { 40, -20, 6, 2.5f, 2.6f, "metal" }, { 26, 10, 1.2f, 1.2f, 1.2f, "crate" }, { 27.2f, 10, 1.2f, 1.2f, 1.2f, "crate" },
+        { 41, 10, 0.8f, 0.8f, 1.1f, "barrel" }, { 41.9f, 10.6f, 0.8f, 0.8f, 1.1f, "barrel" }, { 25, -20, 1.2f, 1.2f, 1.2f, "crate" },
+        // sala de radio y despacho
+        { -6, 27, 3.0f, 0.8f, 1.0f, "console" }, { 5, 27, 2.0f, 0.8f, 1.0f, "console" }, { 0, 21, 3.0f, 1.0f, 0.9f, "pew" },
+        { 19, 25, 3.0f, 1.2f, 0.95f, "pew" }, { 25.5f, 28.5f, 2.5f, 0.6f, 2.0f, "locker" },
+        // portón
+        { -6, -24, 2.5f, 0.8f, 1.0f, "sandbag" }, { 6, -20, 1.2f, 1.2f, 1.2f, "crate" } },
+      {},
+      { { "A", -12, 0 }, { "A", 4, 10 }, { "A", 14, -11 }, { "G", -4, -27 }, { "G", 6, -27 } },
+      { "E", 6, 30 }, true },
+    // Laboratorio Lázaro: bajo tierra. Ascensor, pasillo de contención, criogenia, control, síntesis y el núcleo.
+    { "laboratorio", "LABORATORIO", "laboratorio", 0, 3, 0, "A",
+      { { "A", -8, -8, 8, 8, 0xc8ffd8, false, {} },                                                            // ascensor
+        { "B", -8, 8, 8, 30, 0x9affc0, true, { { 0, 13 }, { 0, 24 } } },                                       // pasillo de contención
+        { "C", -30, 8, -8, 26, 0x8ad8ff, false, { { -19, 13 }, { -19, 21 } } },                                // criogenia
+        { "D", 8, 8, 28, 24, 0xb0e0ff, false, { { 18, 16 } } },                                                // control
+        { "E", -20, 30, 20, 55, 0x70ff90, true, { { -10, 37 }, { 10, 37 }, { -10, 48 }, { 10, 48 } } },        // núcleo
+        { "F", -30, -8, -8, 8, 0xd0ffc8, false, { { -19, 0 } } } },                                            // síntesis
+      { { "A", "B", 0, 8, 750 }, { "B", "C", -8, 18, 1000 }, { "B", "D", 8, 16, 1000 }, { "B", "E", 0, 30, 1500 }, { "A", "F", -8, 0, 1000 },
+        { "F", "C", -20, 8, 750 } },
+      { { "A", -4, -8 }, { "A", 4, -8 }, { "B", -8, 28 }, { "B", 8, 27 }, { "C", -30, 14 }, { "C", -30, 22 }, { "C", -22, 26 }, { "D", 28, 12 },
+        { "D", 28, 20 }, { "D", 18, 24 }, { "E", -20, 38 }, { "E", -20, 48 }, { "E", 20, 38 }, { "E", 20, 48 }, { "E", -8, 55 }, { "E", 8, 55 },
+        { "E", -14, 30 }, { "E", 14, 30 }, { "F", -30, -2 }, { "F", -20, -8 } },
+      { { "A", W_SHOTGUN, 8, -4 }, { "A", W_SMG, -8, 5 }, { "B", W_RIFLE, -8, 11 }, { "C", W_LMG, -30, 10 }, { "D", W_SNIPER, 28, 16 },
+        { "E", W_RPG, 20, 43 }, { "E", W_LAUNCHER, -20, 43 }, { "F", W_SUOMI, -30, 4 }, { "F", W_GARAND, -14, -8 }, { "D", W_FLARE, 14, 24 } },
+      { { "A", P_REVIVE, 0, -8 }, { "C", P_JUGG, -30, 18 }, { "D", P_SPEED, 24, 24 }, { "F", P_DOUBLE, -26, -8 }, { "B", P_STAMIN, 8, 11 } },
+      { { "A", -8, -5 }, { "C", -12, 26 }, { "D", 8, 21 }, { "E", 0, 55 } },
+      { "E", -20, 33 },
+      { // criogenia: cápsulas
+        { -26, 12, 1.4f, 1.4f, 2.6f, "tank" }, { -26, 17, 1.4f, 1.4f, 2.6f, "tank" }, { -26, 22, 1.4f, 1.4f, 2.6f, "tank" },
+        { -13, 12, 1.4f, 1.4f, 2.6f, "tank" }, { -13, 22, 1.4f, 1.4f, 2.6f, "tank" },
+        // control
+        { 13, 11, 4.0f, 0.8f, 1.0f, "console" }, { 23, 11, 4.0f, 0.8f, 1.0f, "console" }, { 18, 19, 3.0f, 1.0f, 0.9f, "pew" },
+        // núcleo: el tanque grande en el centro y columnas
+        { 0, 46, 3.0f, 3.0f, 3.8f, "tank" }, { -12, 42, 1.2f, 1.2f, 3.9f, "metal" }, { 12, 42, 1.2f, 1.2f, 3.9f, "metal" },
+        { -12, 51, 1.2f, 1.2f, 1.2f, "crate" }, { 12, 51, 0.8f, 0.8f, 1.1f, "barrel" }, { -5, 35, 2.5f, 0.8f, 1.0f, "sandbag" },
+        // síntesis
+        { -24, 4, 3.5f, 1.0f, 0.95f, "pew" }, { -14, -4, 3.5f, 1.0f, 0.95f, "pew" }, { -26, -5, 1.0f, 1.0f, 2.2f, "tank" },
+        // pasillo y ascensor
+        { 5, 20, 1.2f, 1.2f, 1.2f, "crate" }, { -5, 4, 0.8f, 0.8f, 1.1f, "barrel" } },
+      {}, {}, { "D", 20, 8 } },
     // Campo de tiro: una galería larga con todas las armas gratis y dianas-zombi (sin daño al jugador)
     { "practica", "CAMPO DE TIRO", "practica", 0, 3, 0, "A",
       { { "A", -9, -46, 9, 7, 0xffe6c0, false, { { 0, 2 }, { 0, -10 }, { 0, -22 }, { 0, -34 }, { 0, -44 } } } },
       {}, {},
       { { "A", W_PISTOL, -9, 5.4f }, { "A", W_SHOTGUN, -9, 3.5f }, { "A", W_SAWED, -9, 1.6f }, { "A", W_SMG, -9, -0.3f }, { "A", W_SUOMI, -9, -2.2f }, { "A", W_RIFLE, -9, -4.1f },
-        { "A", W_LMG, -9, -6.0f }, { "A", W_SNIPER, -9, -7.9f },
+        { "A", W_LMG, -9, -6.0f }, { "A", W_SNIPER, -9, -7.9f }, { "A", W_THOMPSON, -9, -11.5f }, { "A", W_GARAND, -9, -13.4f },
         { "A", W_REVOLVER, 9, 5.4f }, { "A", W_MAGNUM, 9, 3.5f }, { "A", W_FLARE, 9, 1.6f }, { "A", W_RAYGUN, 9, -0.3f }, { "A", W_WUNDER, 9, -2.2f }, { "A", W_THUNDER, 9, -4.1f },
-        { "A", W_LAUNCHER, 9, -6.0f }, { "A", W_RPG, 9, -7.9f } },
+        { "A", W_LAUNCHER, 9, -6.0f }, { "A", W_RPG, 9, -7.9f }, { "A", W_CROSSBOW, 9, -11.5f }, { "A", W_FLAMER, 9, -13.4f }, { "A", W_GATLING, 9, -15.3f } },
       { { "A", P_SPEED, -7.5f, 7 }, { "A", P_DOUBLE, 0, 7 }, { "A", P_STAMIN, 7.5f, 7 } },
       { { "A", -4, 7 } },
       { "A", 4, 7 },
@@ -121,6 +215,9 @@ static Theme ThemeFor(const char *t) {
     if (!strcmp(t, "practica")) return { "bricks", "concfloor", "ceil", 2.2f, 3.0f, 3.0f, { 0.005f, 0.004f, 0.005f }, { 0.03f, 0.028f, 0.026f }, 0.012f };
     if (!strcmp(t, "pueblo")) return { "bricks", "concfloor", "ceil", 2.2f, 3.0f, 3.0f, { 0.010f, 0.012f, 0.020f }, { 0.030f, 0.032f, 0.045f }, 0.022f };   // noche con luna
     if (!strcmp(t, "fabrica")) return { "concwall", "concfloor", "metalceil", 3.0f, 3.0f, 2.5f, { 0.006f, 0.007f, 0.009f }, { 0.012f, 0.013f, 0.016f }, 0.035f };
+    if (!strcmp(t, "hospital")) return { "concwall", "tiles", "ceil", 2.2f, 2.0f, 3.0f, { 0.006f, 0.007f, 0.009f }, { 0.016f, 0.018f, 0.022f }, 0.03f };
+    if (!strcmp(t, "base")) return { "concwall", "concfloor", "metalceil", 3.0f, 3.0f, 2.5f, { 0.010f, 0.011f, 0.016f }, { 0.028f, 0.030f, 0.040f }, 0.022f };   // noche con luna
+    if (!strcmp(t, "laboratorio")) return { "metal", "tiles", "metalceil", 2.5f, 2.0f, 2.5f, { 0.004f, 0.008f, 0.006f }, { 0.010f, 0.016f, 0.013f }, 0.035f };
     return { "bricks", "tiles", "ceil", 2.2f, 2.0f, 3.0f, { 0.005f, 0.004f, 0.005f }, { 0.012f, 0.011f, 0.012f }, 0.04f };
 }
 
@@ -158,6 +255,7 @@ static bool NeedsPower(int perk) { return perk != P_REVIVE; }   // como en el ju
 extern float themeFogDensity; extern Vector3 themeFog, themeAmbient;
 
 const char *MapName() { return curMap ? curMap->name : ""; }
+const char *MapKeyNow() { return curMap ? curMap->key : ""; }
 bool Practice() { return curMap && !strcmp(curMap->key, "practica"); }
 int Cost(int c) { return Practice() ? 0 : c; }
 static std::string Price(int c) { return Practice() ? std::string("[GRATIS]") : "[" + std::to_string(c) + "]"; }
@@ -370,22 +468,84 @@ static PMat *Recolored(const char *base, Color c) {
     return pm;
 }
 
-static Texture2D ChalkTexture(const WeaponDef &d) {
+// Silueta del arma real vista de costado (cañón a la derecha): cada pieza en un gris distinto,
+// así después se pueden marcar los bordes de afuera y las líneas de adentro
+static void GunBounds(int id, Vector3 &mn, Vector3 &mx) {   // caja del arma sin las manos
+    const GunModel &g = gunModels[id];
+    mn = Vector3{ 1e9f, 1e9f, 1e9f }; mx = Vector3{ -1e9f, -1e9f, -1e9f };
+    for (size_t i = 0; i < g.handStart; i++) {
+        BoundingBox b = GetMeshBoundingBox(*g.parts[i].mesh);
+        for (int k = 0; k < 8; k++) {
+            Vector3 c{ k & 1 ? b.max.x : b.min.x, k & 2 ? b.max.y : b.min.y, k & 4 ? b.max.z : b.min.z };
+            c = Vector3Transform(c, g.parts[i].local);
+            mn = Vector3Min(mn, c); mx = Vector3Max(mx, c);
+        }
+    }
+}
+static Image GunSilhouette(int id, int W, int Hh) {
+    const GunModel &g = gunModels[id];
+    Vector3 mn, mx;
+    GunBounds(id, mn, mx);
+    float zc = (mn.z + mx.z) / 2, yc = (mn.y + mx.y) / 2, zl = mx.z - mn.z, yl = mx.y - mn.y;
+    RenderTexture2D rt = LoadRenderTexture(W, Hh);
+    Camera3D c{};
+    c.position = Vector3{ 5, yc, zc }; c.target = Vector3{ 0, yc, zc }; c.up = Vector3{ 0, 1, 0 };
+    c.projection = CAMERA_ORTHOGRAPHIC;
+    c.fovy = std::max(yl, zl * Hh / (float)W) * 1.08f;
+    static Material flat{};
+    if (!flat.maps) flat = LoadMaterialDefault();
+    BeginTextureMode(rt);
+    ClearBackground(BLANK);
+    BeginMode3D(c);
+    for (size_t i = 0; i < g.handStart; i++) {
+        unsigned char sh = (unsigned char)(70 + (i * 67) % 180);
+        flat.maps[MATERIAL_MAP_DIFFUSE].color = Color{ sh, sh, sh, 255 };
+        DrawMesh(*g.parts[i].mesh, flat, g.parts[i].local);
+    }
+    EndMode3D();
+    EndTextureMode();
+    Image img = LoadImageFromTexture(rt.texture);
+    UnloadRenderTexture(rt);
+    ImageFlipVertical(&img);
+    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    return img;
+}
+
+// Cartel de tiza de un arma de pared: el contorno del modelo real, rayado por dentro, con nombre y precio
+static Texture2D ChalkTexture(int id) {
+    const WeaponDef &d = WEAPONS[id];
     Image img = GenImageColor(512, 256, Color{ 18, 18, 18, 255 });
     Color ch{ 225, 225, 225, 220 };
     ImageDrawRectangleLines(&img, Rectangle{ 8, 8, 496, 240 }, 4, ch);
-    // silueta del arma en tiza
-    float L = d.len / 0.9f;
-    int bodyW = (int)(240 * L), x0 = 256 - bodyW / 2;
-    ImageDrawRectangleLines(&img, Rectangle{ (float)x0, 50, (float)bodyW, 38 }, 5, ch);
-    ImageDrawRectangleLines(&img, Rectangle{ (float)(x0 + bodyW), 60, 70, 14 }, 4, ch);
-    ImageDrawRectangleLines(&img, Rectangle{ (float)(x0 + 40), 88, 28, 50 }, 5, ch);
-    if (d.len > 0.35f) ImageDrawRectangleLines(&img, Rectangle{ (float)(x0 - 60), 55, 60, 30 }, 5, ch);
+    const int SW = 470, SH = 136, ox = 21, oy = 14;
+    Image sil = GunSilhouette(id, SW, SH);
+    Color *sp = (Color *)sil.data, *dp = (Color *)img.data;
+    auto inside = [&](int x, int y) { return x >= 0 && y >= 0 && x < SW && y < SH && sp[y * SW + x].a > 128; };
+    auto shade = [&](int x, int y) { return (int)sp[y * SW + x].r; };
+    for (int y = 0; y < SH; y++) for (int x = 0; x < SW; x++) {
+        if (!inside(x, y)) continue;
+        bool outer = false, inner = false;
+        for (int dy = -2; dy <= 2 && !outer; dy++) for (int dx = -2; dx <= 2; dx++) if (!inside(x + dx, y + dy)) { outer = true; break; }
+        if (!outer) for (int k = 0; k < 4 && !inner; k++) {
+            int nx = x + (k == 0) - (k == 1), ny = y + (k == 2) - (k == 3);
+            if (inside(nx, ny) && abs(shade(nx, ny) - shade(x, y)) > 12) inner = true;
+        }
+        float grain = ((x * 7919 + y * 104729) ^ (x * y * 31)) % 100 / 100.0f;   // tiza: trazo que se corta
+        float a = outer ? 0.95f : inner ? 0.6f : ((x + y) % 10 < 2 ? 0.22f : 0.0f);   // relleno rayado en diagonal
+        a *= 0.55f + 0.45f * grain;
+        if (grain < 0.12f) a *= 0.3f;
+        if (a <= 0) continue;
+        Color &o = dp[(y + oy) * 512 + (x + ox)];
+        o.r = (unsigned char)lerpf(o.r, 232, a); o.g = (unsigned char)lerpf(o.g, 232, a); o.b = (unsigned char)lerpf(o.b, 228, a);
+    }
+    UnloadImage(sil);
     Vector2 s = MeasureTextEx(fontUI, d.name, 40, 1);
-    ImageDrawTextEx(&img, fontUI, d.name, Vector2{ 256 - s.x / 2, 150 }, 40, 1, Color{ 240, 240, 240, 255 });
+    float fs = s.x > 480 ? 40 * 480 / s.x : 40;
+    s = MeasureTextEx(fontUI, d.name, fs, 1);
+    ImageDrawTextEx(&img, fontUI, d.name, Vector2{ 256 - s.x / 2, 154 }, fs, 1, Color{ 240, 240, 240, 255 });
     char cost[16]; if (Practice()) snprintf(cost, 16, "GRATIS"); else snprintf(cost, 16, "%d", d.cost);
     s = MeasureTextEx(fontUI, cost, 34, 1);
-    ImageDrawTextEx(&img, fontUI, cost, Vector2{ 256 - s.x / 2, 198 }, 34, 1, Color{ 255, 216, 74, 255 });
+    ImageDrawTextEx(&img, fontUI, cost, Vector2{ 256 - s.x / 2, 200 }, 34, 1, Color{ 255, 216, 74, 255 });
     Texture2D t = LoadTextureFromImage(img);
     UnloadImage(img);
     GenTextureMipmaps(&t);
@@ -624,6 +784,58 @@ static bool BuildFancyProp(const PropDef &p) {
         AddSolidBox(Vector3{ p.x - p.w / 2, 0, p.z - p.d / 2 }, Vector3{ p.x + p.w / 2, p.h * 0.7f, p.z + p.d / 2 }, true);
         return true;
     }
+    if (!strcmp(p.type, "bed")) {   // camilla de hospital: patas de metal y colchón
+        add(&unitCube, &M("darkmetal"), Vector3{ p.x, 0.32f, p.z }, Vector3{ p.w, 0.08f, p.d });
+        for (int i = 0; i < 4; i++)
+            add(&unitCube, &M("darkmetal"), Vector3{ p.x + (i & 1 ? 1 : -1) * p.w * 0.45f, 0.16f, p.z + (i & 2 ? 1 : -1) * p.d * 0.42f }, Vector3{ 0.05f, 0.32f, 0.05f });
+        add(&unitCube, Recolored("concwall", Color{ 225, 228, 222, 255 }), Vector3{ p.x, p.h - 0.09f, p.z }, Vector3{ p.w * 0.96f, 0.18f, p.d * 0.92f });
+        solid(p.h, true);
+        return true;
+    }
+    if (!strcmp(p.type, "locker")) {   // casilleros o armario de metal
+        add(&unitCube, Recolored("metal", Color{ 110, 120, 105, 255 }), Vector3{ p.x, p.h / 2, p.z }, Vector3{ p.w, p.h, p.d });
+        bool alongX = p.w >= p.d;
+        int n = std::max(1, (int)(std::max(p.w, p.d) / 0.55f));
+        for (int i = 0; i < n; i++) {   // rendijas de cada puerta
+            float t = -0.5f + (i + 0.5f) / n;
+            Vector3 pos{ p.x + (alongX ? t * p.w : (p.w / 2 + 0.01f)), p.h * 0.8f, p.z + (alongX ? (p.d / 2 + 0.01f) : t * p.d) };
+            add(&unitCube, &M("darkmetal"), pos, alongX ? Vector3{ 0.3f, 0.12f, 0.02f } : Vector3{ 0.02f, 0.12f, 0.3f });
+        }
+        solid(p.h, p.h <= 2.0f);
+        return true;
+    }
+    if (!strcmp(p.type, "tank")) {   // tanque de cristal con líquido verde que brilla
+        add(&unitCyl, &M("darkmetal"), Vector3{ p.x, 0.2f, p.z }, Vector3{ p.w * 1.1f, 0.4f, p.d * 1.1f });
+        add(&unitCyl, TintedFixture(0x40ff90, 0.75f), Vector3{ p.x, p.h / 2 + 0.1f, p.z }, Vector3{ p.w * 0.9f, p.h - 0.6f, p.d * 0.9f });
+        add(&unitCyl, &M("darkmetal"), Vector3{ p.x, p.h - 0.15f, p.z }, Vector3{ p.w * 1.1f, 0.3f, p.d * 1.1f });
+        for (int i = 0; i < 3; i++) {
+            float a = i * 2.094f;
+            add(&unitCube, &M("darkmetal"), Vector3{ p.x + cosf(a) * p.w * 0.5f, p.h / 2, p.z + sinf(a) * p.d * 0.5f }, Vector3{ 0.06f, p.h, 0.06f });
+        }
+        lights.push_back({ Vector3{ p.x, p.h * 0.6f, p.z }, Vector3{ 0.5f, 2.2f, 0.9f }, 5.0f, false, 1, false });
+        solid(p.h, false);
+        return true;
+    }
+    if (!strcmp(p.type, "console")) {   // consola con pantalla encendida
+        add(&unitCube, &M("darkmetal"), Vector3{ p.x, p.h / 2, p.z }, Vector3{ p.w, p.h, p.d });
+        bool alongX = p.w >= p.d;
+        add(&unitCube, TintedFixture(0x5ab8ff, 1.4f), Vector3{ p.x, p.h + 0.25f, p.z }, alongX ? Vector3{ p.w * 0.8f, 0.45f, 0.05f } : Vector3{ 0.05f, 0.45f, p.d * 0.8f });
+        solid(p.h, true);
+        return true;
+    }
+    if (!strcmp(p.type, "truck")) {   // camión militar
+        add(&unitCube, Recolored("metal", Color{ 85, 95, 60, 255 }), Vector3{ p.x, 1.0f, p.z }, Vector3{ p.w, 1.0f, p.d });
+        bool alongZ = p.d >= p.w;
+        add(&unitCube, Recolored("metal", Color{ 70, 80, 50, 255 }), Vector3{ p.x, 2.0f, p.z + (alongZ ? p.d * 0.15f : 0) }, alongZ ? Vector3{ p.w * 0.95f, 1.6f, p.d * 0.65f } : Vector3{ p.w * 0.65f, 1.6f, p.d * 0.95f });
+        add(&unitCube, &M("darkmetal"), Vector3{ p.x, 1.85f, p.z - (alongZ ? p.d * 0.36f : 0) }, alongZ ? Vector3{ p.w * 0.9f, 1.1f, p.d * 0.22f } : Vector3{ p.w * 0.22f, 1.1f, p.d * 0.9f });
+        for (int i = 0; i < 6; i++) {
+            float t = (i / 2) / 2.0f - 0.5f;
+            Vector3 c = alongZ ? Vector3{ p.x + (i & 1 ? 1 : -1) * p.w * 0.47f, 0.45f, p.z + t * p.d * 0.8f } : Vector3{ p.x + t * p.w * 0.8f, 0.45f, p.z + (i & 1 ? 1 : -1) * p.d * 0.47f };
+            props.push_back({ &unitCyl, &M("darkmetal"), TRSm(c, alongZ ? 0 : PI_F / 2, Vector3{ 0.9f, 0.3f, 0.9f }, 0, PI_F / 2) });
+        }
+        solid(2.8f, false);
+        return true;
+    }
     if (!strcmp(p.type, "fountain")) {   // fuente de piedra de la plaza
         add(&unitCyl, &M("concwall"), Vector3{ p.x, p.h / 2, p.z }, Vector3{ p.w, p.h, p.d });
         add(&unitCyl, &M("darkmetal"), Vector3{ p.x, p.h - 0.02f, p.z }, Vector3{ p.w * 0.85f, 0.06f, p.d * 0.85f });
@@ -729,6 +941,9 @@ void PokeProp(Vector3 hit, Vector3 dir) {
     }
 }
 
+struct WallGun { int id; Matrix tf; bool shown; };
+static std::vector<WallGun> wallGuns;   // armas de pared ya compradas: se ven colgadas
+static std::vector<MaterialMap *> chalkMaps;
 static void MakeWallBuy(const BuyDef &b) {
     int room = RoomIndex(b.room);
     const WeaponDef &d = WEAPONS[b.weapon];
@@ -736,13 +951,28 @@ static void MakeWallBuy(const BuyDef &b) {
     dynMats.push_back(PMat());
     PMat &pm = dynMats.back();
     pm = M("polymer");
-    pm.m.maps[MATERIAL_MAP_ALBEDO].texture = ChalkTexture(d);
+    MaterialMap *maps = (MaterialMap *)MemAlloc(sizeof(MaterialMap) * 12 /* MAX_MATERIAL_MAPS de raylib */);   // mapas propios: si no, todos los carteles (y el plástico de las armas) comparten la textura
+    memcpy(maps, pm.m.maps, sizeof(MaterialMap) * 12);
+    pm.m.maps = maps;
+    chalkMaps.push_back(maps);
+    pm.m.maps[MATERIAL_MAP_ALBEDO].texture = ChalkTexture(b.weapon);
     pm.m.maps[MATERIAL_MAP_ALBEDO].color = WHITE;
     pm.m.maps[MATERIAL_MAP_NORMAL].texture = texFlat;
     pm.rough = 1; pm.nstr = 0;
     Prop pr{ &unitCube, &pm, TRSm(Vector3{ b.x + p.nx * 0.205f, 1.7f, b.z + p.nz * 0.205f }, p.ry, Vector3{ 1.8f, 0.9f, 0.01f }) };
     props.push_back(pr);
     mmIcons.push_back({ b.x, b.z, Color{ 255, 216, 74, 255 }, 0.5f });
+    // el arma real, colgada sobre su dibujo de tiza (aparece cuando alguien la compra)
+    {
+        Vector3 mn, mx;
+        GunBounds(b.weapon, mn, mx);
+        float sc = std::min(1.652f / std::max(0.05f, mx.z - mn.z), 0.478f / std::max(0.05f, mx.y - mn.y)) / 1.08f;
+        Vector3 ctr = Vector3Scale(Vector3Add(mn, mx), 0.5f);
+        Matrix tf = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixTranslate(-ctr.x, -ctr.y, -ctr.z), MatrixScale(sc, sc, sc)), MatrixRotateY(-PI_F / 2 + p.ry)),
+                                   MatrixTranslate(b.x + p.nx * 0.27f, 1.86f, b.z + p.nz * 0.27f));
+        wallGuns.push_back({ b.weapon, tf, false });
+    }
+    int wg = (int)wallGuns.size() - 1;
     int id = b.weapon;
     Vector2 pos{ b.x + p.nx * 1.0f, b.z + p.nz * 1.0f };
     Interact it;
@@ -756,7 +986,7 @@ static void MakeWallBuy(const BuyDef &b) {
         snprintf(buf, 96, Practice() ? "Presiona E para tomar %s [GRATIS]" : "Presiona E para comprar %s [%d]", d.name, d.cost);
         return std::string(buf);
     };
-    it.action = [id]() {
+    it.action = [id, wg]() {
         const WeaponDef &d = WEAPONS[id];
         for (auto &w : player.weapons) if (w.id == id) {
             WStats s = Stats(w.id, w.pap);
@@ -764,7 +994,7 @@ static void MakeWallBuy(const BuyDef &b) {
             if (Spend(w.pap ? 2500 : d.cost / 2)) w.reserve = s.reserve;
             return;
         }
-        if (Spend(d.cost)) GiveWeapon(id);
+        if (Spend(d.cost)) { GiveWeapon(id); if (wg < (int)wallGuns.size()) wallGuns[wg].shown = true; }
     };
     interactables.push_back(it);
 }
@@ -863,7 +1093,7 @@ void UpdateBox(float dt) {
         if (b.swapT <= 0) { b.show = BOX_POOL[irand((int)BOX_POOL.size())]; b.swapT = 0.06f + b.t * 0.05f; }
         b.lift = 0.5f + std::min(b.t / 4, 1.0f) * 0.9f;
         if (b.t > 4) {
-            if (b.uses >= 4 && frand(0, 1) < 0.2f && curMap->boxSpots.size() > 1) {
+            if (b.uses >= 3 && frand(0, 1) < 0.25f && curMap->boxSpots.size() > 1) {
                 b.state = BOX_TEDDY; b.t = 0; b.show = -1; b.teddy = true;
                 Play("laugh");
             } else {
@@ -889,13 +1119,13 @@ void UpdateBox(float dt) {
     } else if (b.state == BOX_TEDDY) {
         b.t += dt;
         b.teddyRot += dt * 3;
-        if (b.t > 2.5f) { b.teddy = false; b.state = BOX_LEAVING; b.t = 0; CenterMsg("¡LA CAJA SE ESTÁ MOVIENDO!", Color{ 127, 212, 255, 255 }); }
+        if (b.t > 3.6f) { b.teddy = false; b.state = BOX_LEAVING; b.t = 0; CenterMsg("¡LA CAJA SE ESTÁ MOVIENDO!", Color{ 127, 212, 255, 255 }); }
     } else if (b.state == BOX_LEAVING) {
         b.t += dt;
         b.spin += dt * b.t * 4;
         if (b.t > 3) {
-            int idx;
-            do idx = irand((int)curMap->boxSpots.size()); while (idx == b.spot);
+            int idx = b.spot, n = (int)curMap->boxSpots.size();
+            if (n > 1) do idx = irand(n); while (idx == b.spot);
             PlaceBox(idx);
             b.spin = 0;
             player.points += 950;
@@ -961,6 +1191,11 @@ void UpdatePap(float dt) {
 }
 
 void DrawBoxAndPap() {
+    for (auto &w : wallGuns) {   // se cuelga cuando la comprás (o si ya la tenés)
+        bool own = w.shown;
+        for (auto &o : player.weapons) if (o.id == w.id) own = true;
+        if (own) DrawGun(gunModels[w.id], w.tf, false, false);
+    }
     // caja
     Matrix base = MatrixMultiply(MatrixRotateY(box.ry + box.spin), MatrixTranslate(box.pos.x, box.state == BOX_LEAVING ? box.t * box.t * 1.5f : 0, box.pos.y));
     auto part = [&](Mesh &m, PMat &pm, Vector3 s, Vector3 p, Matrix extra = MatrixIdentity()) {
@@ -974,11 +1209,30 @@ void DrawBoxAndPap() {
         Matrix g = MatrixMultiply(MatrixMultiply(MatrixScale(2.0f, 2.0f, 2.0f), MatrixRotateY(PI_F / 2)), MatrixTranslate(0.45f, box.lift, 0));
         DrawGun(gunModels[box.show], MatrixMultiply(g, base), false, false);
     }
-    if (box.teddy) {
-        Matrix tb = MatrixMultiply(MatrixMultiply(MatrixRotateY(box.teddyRot), MatrixTranslate(0, 1.3f, 0)), base);
-        auto ball = [&](float r, float x, float y, float z) { DrawPM(unitSphere, M("fur"), MatrixMultiply(MatrixMultiply(MatrixScale(r * 2, r * 2, r * 2), MatrixTranslate(x, y, z)), tb)); };
-        ball(0.22f, 0, 0, 0); ball(0.16f, 0, 0.3f, 0); ball(0.06f, -0.12f, 0.44f, 0); ball(0.06f, 0.12f, 0.44f, 0);
-        ball(0.08f, -0.22f, 0.05f, 0.05f); ball(0.08f, 0.22f, 0.05f, 0.05f); ball(0.09f, -0.1f, -0.22f, 0.05f); ball(0.09f, 0.1f, -0.22f, 0.05f);
+    // metal en las esquinas y cerradura (cofre viejo)
+    for (float sx : { -0.88f, 0.88f }) for (float sz : { -0.38f, 0.38f })
+        part(unitCube, M("rust"), Vector3{ 0.08f, 0.78f, 0.08f }, Vector3{ sx, 0.39f, sz });
+    part(unitCube, M("brass"), Vector3{ 0.16f, 0.2f, 0.04f }, Vector3{ 0, 0.62f, 0.41f });
+    if (box.teddy) {   // el osito sale de la caja: se eleva girando y se ríe de vos
+        float ru = std::min(box.t / 1.2f, 1.0f), rise = ru * ru * (3 - 2 * ru);
+        Matrix tb = MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixRotateZ(sinf(box.t * 5) * 0.15f), MatrixRotateY(box.teddyRot)), MatrixTranslate(0, 0.45f + rise * 0.95f, 0)), base);
+        auto ball = [&](PMat &m, float rx, float ry, float rz, float x, float y, float z) { DrawPM(unitSphere, m, MatrixMultiply(MatrixMultiply(MatrixScale(rx * 2, ry * 2, rz * 2), MatrixTranslate(x, y, z)), tb)); };
+        PMat &fur = M("fur"), &dark = M("polymer"), &light = M("crate");
+        ball(fur, 0.2f, 0.24f, 0.17f, 0, 0, 0);                     // panza
+        ball(light, 0.12f, 0.15f, 0.04f, 0, -0.02f, 0.14f);         // barriga clara
+        ball(fur, 0.17f, 0.16f, 0.15f, 0, 0.33f, 0);                // cabeza
+        ball(light, 0.075f, 0.06f, 0.06f, 0, 0.3f, 0.13f);          // hocico
+        ball(dark, 0.025f, 0.02f, 0.02f, 0, 0.32f, 0.185f);         // nariz
+        ball(dark, 0.022f, 0.022f, 0.015f, -0.06f, 0.37f, 0.135f);  // ojos de botón
+        ball(dark, 0.022f, 0.022f, 0.015f, 0.06f, 0.37f, 0.135f);
+        for (float s : { -1.0f, 1.0f }) {
+            ball(fur, 0.065f, 0.065f, 0.035f, s * 0.13f, 0.47f, 0);      // orejas
+            ball(light, 0.04f, 0.04f, 0.02f, s * 0.13f, 0.47f, 0.02f);
+            ball(fur, 0.07f, 0.12f, 0.07f, s * 0.22f, 0.04f, 0.04f);     // brazos
+            ball(fur, 0.08f, 0.08f, 0.13f, s * 0.11f, -0.22f, 0.08f);    // patas
+            ball(light, 0.05f, 0.05f, 0.02f, s * 0.11f, -0.22f, 0.21f);  // plantas
+        }
+        ball(M("raygunred"), 0.1f, 0.035f, 0.03f, 0, 0.18f, 0.12f);    // moñito
     }
     // Pack-a-Punch
     Matrix pb = MatrixMultiply(MatrixRotateY(pap.ry), MatrixTranslate(pap.pos.x, 0, pap.pos.z));
@@ -1011,6 +1265,8 @@ static void PowerVisuals(float k) {
 }
 
 static int powerLab = -1;   // cartel del interruptor
+static Vector2 powerSpot{ 0, 0 };   // dónde se para el jugador para activarlo
+bool PowerSwitchSpot(Vector2 &p) { if (!curMap || !curMap->power.room) return false; p = powerSpot; return true; }
 static void BuildPowerSwitch() {
     powerLab = -1;
     powerOn = curMap->power.room == nullptr;
@@ -1030,6 +1286,7 @@ static void BuildPowerSwitch() {
     int lab = (int)labels.size() - 1;
     mmIcons.push_back({ cx, cz, Color{ 255, 230, 60, 255 }, 0.6f });
     Vector2 pos{ cx + p.nx * 0.9f, cz + p.nz * 0.9f };
+    powerSpot = pos;
     Interact it;
     it.pos = [pos]() { return pos; };
     it.range = 1.8f;
@@ -1203,6 +1460,9 @@ void BuildMap(const char *key) {
         Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(0.3f, len, 0.3f), MatrixRotateZ(PI_F / 2)), MatrixRotateY(-atan2f(pp.z2 - pp.z1, pp.x2 - pp.x1)));
         props.push_back({ &unitCyl, &M("rust"), MatrixMultiply(m, MatrixTranslate((pp.x1 + pp.x2) / 2, H - 0.35f, (pp.z1 + pp.z2) / 2)) });
     }
+    wallGuns.clear();
+    for (auto *m : chalkMaps) MemFree(m);
+    chalkMaps.clear();
     for (auto &b : curMap->wallBuys) MakeWallBuy(b);
     for (auto &p : curMap->perks) MakePerk(p);
     BuildBox();
@@ -1249,8 +1509,76 @@ void DrawWorldDynamic() {
 
 void DrawUnlitBegin(float intensity);
 void DrawUnlitEnd();
+// Brillos de la caja misteriosa: signos "?" en los costados, el haz de luz azul cuando espera
+// y el nombre del arma que está saliendo (el arma real que te va a tocar)
+static void BoxQuad(Texture2D t, Vector3 c, Vector3 r, Vector3 u, Color col) {
+    rlSetTexture(t.id);
+    rlBegin(RL_QUADS);
+    rlColor4ub(col.r, col.g, col.b, col.a);
+    Vector3 P[4] = { Vector3Subtract(Vector3Subtract(c, r), u), Vector3Subtract(Vector3Add(c, r), u), Vector3Add(Vector3Add(c, r), u), Vector3Add(Vector3Subtract(c, r), u) };
+    float uv[4][2] = { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } };
+    for (int i = 0; i < 4; i++) { rlTexCoord2f(uv[i][0], uv[i][1]); rlVertex3f(P[i].x, P[i].y, P[i].z); }
+    for (int i = 3; i >= 0; i--) { rlTexCoord2f(uv[i][0], uv[i][1]); rlVertex3f(P[i].x, P[i].y, P[i].z); }
+    rlEnd();
+    rlSetTexture(0);
+}
+static void DrawBoxFx() {
+    static Texture2D qTex{}, beamTex{}, names[W_COUNT]{};
+    if (!qTex.id) {
+        qTex = MakeLabel("?", Color{ 127, 220, 255, 255 }, 140);
+        Image b = GenImageColor(32, 128, BLANK);
+        Color *px = (Color *)b.data;
+        for (int y = 0; y < 128; y++) for (int x = 0; x < 32; x++) {
+            float u = fabsf((x + 0.5f) / 16 - 1), v = y / 127.0f;   // v = 0 arriba
+            float a = powf(1 - u, 2.2f) * powf(v, 1.6f);
+            px[y * 32 + x] = Color{ 255, 255, 255, (unsigned char)(a * 255) };
+        }
+        beamTex = LoadTextureFromImage(b); UnloadImage(b);
+        SetTextureFilter(beamTex, TEXTURE_FILTER_BILINEAR);
+    }
+    if (box.state == BOX_LEAVING && box.t > 1.5f) return;
+    float lift = box.state == BOX_LEAVING ? box.t * box.t * 1.5f : 0;
+    float c = cosf(box.ry + box.spin), s = sinf(box.ry + box.spin);
+    Vector3 X{ c, 0, -s }, Z{ s, 0, c }, Y{ 0, 1, 0 };   // ejes de la caja
+    Vector3 o{ box.pos.x, lift, box.pos.y };
+    auto at = [&](float x, float y, float z) { return Vector3Add(o, Vector3Add(Vector3Scale(X, x), Vector3Add(Vector3Scale(Y, y), Vector3Scale(Z, z)))); };
+    float pulse = 0.7f + 0.3f * sinf(T * 3.0f);
+    rlSetBlendMode(BLEND_ADDITIVE);
+    DrawUnlitBegin(2.2f);
+    Color qc{ (unsigned char)(127 * pulse), (unsigned char)(220 * pulse), (unsigned char)(255 * pulse), 255 };
+    float q = 0.17f;
+    for (float x : { -0.5f, 0.5f }) {
+        BoxQuad(qTex, at(x, 0.38f, 0.405f), Vector3Scale(X, q), Vector3Scale(Y, q), qc);
+        BoxQuad(qTex, at(x, 0.38f, -0.405f), Vector3Scale(X, -q), Vector3Scale(Y, q), qc);
+    }
+    BoxQuad(qTex, at(0.905f, 0.38f, 0), Vector3Scale(Z, -q), Vector3Scale(Y, q), qc);
+    BoxQuad(qTex, at(-0.905f, 0.38f, 0), Vector3Scale(Z, q), Vector3Scale(Y, q), qc);
+    // haz de luz que sube hasta el cielo (o el techo) mientras la caja espera
+    if (box.state == BOX_IDLE || box.state == BOX_LEAVING) {
+        float top = MapOutdoor() ? 30.0f : H, a = box.state == BOX_LEAVING ? 1 - box.t / 1.5f : 1;
+        Vector3 view = Vector3Subtract(cam.position, Vector3{ o.x, cam.position.y, o.z });
+        Vector3 side = Vector3Normalize(Vector3CrossProduct(Y, view));
+        Vector3 mid{ o.x, 0.8f + (top - 0.8f) / 2, o.z };
+        Color bc{ (unsigned char)(60 * a * pulse), (unsigned char)(150 * a * pulse), (unsigned char)(255 * a * pulse), 255 };
+        BoxQuad(beamTex, mid, Vector3Scale(side, 0.38f), Vector3{ 0, (top - 0.8f) / 2, 0 }, bc);
+        BoxQuad(beamTex, mid, Vector3Scale(side, 0.14f), Vector3{ 0, (top - 0.8f) / 2, 0 }, Color{ (unsigned char)(150 * a), (unsigned char)(220 * a), (unsigned char)(255 * a), 255 });
+    }
+    DrawUnlitEnd();
+    rlSetBlendMode(BLEND_ALPHA);
+    // nombre del arma que sale de la caja
+    if (box.show >= 0 && box.show < W_COUNT) {
+        if (!names[box.show].id) names[box.show] = MakeLabel(WEAPONS[box.show].name, box.state == BOX_OFFER ? Color{ 255, 230, 140, 255 } : Color{ 255, 230, 140, 255 }, 54);
+        DrawUnlitBegin(1.0f);
+        Vector3 lp = at(0, box.lift + 0.45f, 0.2f);
+        float w = std::min(0.06f * strlen(WEAPONS[box.show].name) + 0.3f, 1.4f);
+        DrawWorldLabel(names[box.show], lp, w * (box.state == BOX_OFFER ? 1.0f : 0.8f));
+        DrawUnlitEnd();
+    }
+}
+
 void DrawLabels() {
-    if (boxLabel >= 0) labels[boxLabel].visible = box.state != BOX_LEAVING;
+    if (boxLabel >= 0) labels[boxLabel].visible = box.state == BOX_IDLE || box.state == BOX_CLOSING;   // mientras sale un arma se ve su nombre
+    DrawBoxFx();
     DrawUnlitBegin(1.0f);
     for (auto &l : labels) if (l.visible) DrawWorldLabel(l.tex, l.pos, l.width);
     DrawUnlitEnd();

@@ -29,12 +29,18 @@ Hecho desde cero en **C++ con raylib**: renderizado PBR, sombras, ragdolls y aud
 
 ## ✨ Características
 
-- 🗺️ **Tres mapas**: **Búnker** (pasillos estrechos) y **Fábrica** (mapa grande), con 5 zonas cada uno, y **Pueblo**, un mapa grande **al aire libre** de noche con 7 zonas: plaza, calle principal, iglesia, cementerio, estación, casa y taller, con cielo con luna y estrellas, farolas, autos abandonados y zombis que salen de la tierra. Además, un **Campo de tiro** para probar todas las armas gratis.
+- 📖 **Modo historia: *Operación Lázaro***. Seis capítulos con Milton como compañero, cinemáticas, diálogos con voz y un jefe final (ver abajo).
+- 🤝 **Compañero bot**: el cabo Milton pelea a tu lado en la historia, y en supervivencia si lo activás en Opciones. Sus bajas también te dan puntos, y si te acercás y presionás `E` te da charla.
+- 🪖 **Uniformes**: Frank con camuflaje de bosque, Milton de desierto y los soldados de Reyes de negro, con casco y piel propios. Mueven la cabeza y asienten cuando hablan.
+- 🥚 **Huevos de pascua** (ver abajo).
+- 🗺️ **Seis mapas**: **Búnker** (pasillos estrechos) y **Fábrica** (mapa grande), con 5 zonas cada uno, y **Pueblo**, un mapa grande **al aire libre** de noche con 7 zonas: plaza, calle principal, iglesia, cementerio, estación, casa y taller, con cielo con luna y estrellas, farolas, autos abandonados y zombis que salen de la tierra. Nuevos: **Hospital** San Rafael (camillas, morgue y quirófano), **Fuerte Reyes** (base militar con patio al aire libre, hangar y camiones) y **Laboratorio** bajo tierra (cápsulas de criogenia y el núcleo). Además, un **Campo de tiro** para probar todas las armas gratis.
 - 🧗 **Te podés subir** a cajas, barriles, autos, lápidas, sacos de arena y a la caja misteriosa: saltá contra ellos y trepás solo.
 - 🗣️ **El personaje habla**: insulta a los zombis cuando lo hieren y comenta las bajas, los tiros a la cabeza, las recargas, las rondas nuevas y los perros.
-- 🎬 **Cinemática de llegada** en cada mapa, con un soldado hablando por radio y subtítulos: te acercás de noche a una ventana, la cámara recorre la sala y baja hasta tus ojos (se salta con `Espacio`).
-- 🔫 **16 armas**, de pistolas a lanzamisiles, incluidas las **armas maravilla** que solo salen en la caja: Pistola de rayos, Wunderwaffe DG-2 (rayos en cadena) y Cañón de trueno.
-- 🎁 **Caja misteriosa** (950) con su osito que la hace mudarse, y **Pack-a-Punch** (5000) para mejorar cualquier arma con nombre nuevo.
+- 🎬 **Cinemática de llegada** en cada mapa, con un soldado hablando por radio y subtítulos. Cada mapa entra distinto: corriendo a una ventana (Búnker), avanzando despacio con el arma lista (Hospital, Fábrica), espalda con espalda (Laboratorio) o con una grúa que baja desde el cielo (Pueblo, Fuerte Reyes). Después la cámara recorre la sala y baja hasta tus ojos (se salta con `Espacio`).
+- 🔫 **21 armas**, de pistolas a lanzamisiles, incluidas las **armas maravilla** que solo salen en la caja: Pistola de rayos, Wunderwaffe DG-2 (rayos en cadena) y Cañón de trueno. Nuevas: **Thompson** con tambor, **M1 Garand** (con su "¡ping!"), **ballesta explosiva** (la flecha se clava, pita y revienta), **lanzallamas** y **ametralladora rotativa** (gira los cañones antes de disparar).
+- 💥 **Explosiones de verdad**: bola de fuego que se vuelve humo negro, polvo que corre por el suelo, chispas, escombros que rebotan (algunos encendidos), onda expansiva y luz que parpadea.
+- 🖍️ **Armas de pared** dibujadas en tiza con la **forma real** de cada arma; cuando la comprás, queda colgada sobre su dibujo.
+- 🎁 **Caja misteriosa** (950) con signos "?" que brillan, su haz de luz azul, el nombre del arma real que sale y su **osito de peluche** que la hace mudarse, y **Pack-a-Punch** (5000) para mejorar cualquier arma con nombre nuevo.
 - 🥤 **Bebidas**: Quick Revive, Juggernog, Speed Cola, Double Tap y Pola Veloz.
 - ⚡ **Interruptor de la corriente**: sin él, casi todas las bebidas y el Pack-a-Punch están apagados.
 - 🐺 **Rondas de perros del infierno** con niebla y rayos.
@@ -55,6 +61,37 @@ Hecho desde cero en **C++ con raylib**: renderizado PBR, sombras, ragdolls y aud
 | `E` | Comprar / abrir / reparar (mantener) | `1 2 3` / rueda | Cambiar arma |
 | `M` | Música | `F3` | Gráficos rápidos |
 | `F11` | Pantalla completa | `Esc` | Pausa y opciones |
+
+## 📖 Modo historia: Operación Lázaro
+
+*Hace tres días, el Búnker 7 dejó de responder.* El sargento **Frank** y el cabo **Milton** entran a recuperar la investigación de la doctora **Elena Vidal** sobre el **Proyecto Lázaro**, un suero que devuelve la vida a los muertos. Lo que encuentran los pone en contra de su propio comandante, el **coronel Reyes**, y los lleva hasta el laboratorio donde espera el **Paciente Cero**.
+
+| Capítulo | Mapa | Lo que pasa |
+|---|---|---|
+| **1 · Lo que quedó enterrado** | Búnker | Primera oleada, corriente, los 3 diarios grabados de Vidal y 90 s hasta la extracción |
+| **2 · Línea de producción** | Fábrica | Reyes ordena volar la fábrica. 3 cargas (mantener `E`), Vidal aparece en la radio y la fábrica explota (cinemática) |
+| **3 · Pabellón 6** | Hospital | Corriente, fichas de los pacientes, la tarjeta de la morgue y **defender el quirófano** mientras se suben los archivos |
+| **4 · San Roque** | Pueblo | Encuentran a Vidal en la iglesia, juntan las muestras de la cura y aguantan hasta el amanecer… cuando muerden a Milton |
+| **5 · Órdenes** | Fuerte Reyes | Copiar los códigos de 3 terminales, el discurso de Reyes por los altavoces y resistir hasta que se abra el ascensor |
+| **6 · Paciente Cero** | Laboratorio | Los componentes de la cura, **el jefe final Lázaro** (con barra de vida) y defender el sintetizador. Final y epílogo |
+
+- 🤝 **Milton pelea a tu lado** (bot): te sigue por las puertas, dispara a los zombis que ve, avisa si tenés uno detrás y habla durante la partida. Si cae, lo levantás manteniendo `E` (o se levanta solo a los 40 s). También se puede activar en supervivencia desde **Opciones**.
+- 🎬 **13 cinemáticas** con actores (Frank, Milton y zombis): una charla entre Frank y Milton al empezar cada capítulo y 7 escenas de la historia, además de la llegada a cada mapa. Montadas como en el cine: grúas, travellings, órbitas, planos a ras del piso, cortes secos, cámara en mano, grano de película, **cámara lenta** (el salto de la fábrica, la mordida) y efecto vértigo cuando despierta Lázaro. Los personajes corren, caminan, se agachan, saltan, empujan y saludan, y el que escucha gira la cabeza hacia el que habla; en los diálogos la cámara pasa a primeros planos por encima del hombro.
+- 🎙️ **Más de 250 frases con voz**: Frank, Milton, el coronel Reyes por radio y por altavoces, Vidal en vivo y en sus grabaciones. El guion completo está en `cpp/assets/sfx/historia/guion.tsv`.
+- 🧭 Objetivo en pantalla, marcador con la distancia, objetos en el minimapa y barra para las zonas a defender.
+- 💾 El progreso se guarda solo (`historia.txt`): cada capítulo desbloquea el siguiente. Si caés, reintentás el capítulo.
+
+## 🥚 Huevos de pascua
+
+<details>
+<summary>Spoilers</summary>
+
+- 🧸 **Tres ositos escondidos en cada mapa.** Encontrá los tres en una partida y te llevás la Pistola de Rayos mejorada con Pack-a-Punch… y Milton estrena uniforme rosa (se puede apagar en Opciones).
+- 📻 **Una radio vieja con la luz verde en cada mapa.** Cada una guarda una grabación del pasado. Con las seis se escucha la verdad sobre Lázaro.
+- 🗣️ **Escribí `CABEZON`** durante la partida o en la pausa: zombis cabezones (y más fáciles de acertar a la cabeza).
+- 💬 Algunas charlas de Milton tienen pistas.
+
+</details>
 
 ## 🌐 Multijugador (co-op en línea)
 
@@ -95,12 +132,42 @@ La primera versión del juego (*Noche de Zombis*) está hecha con **Three.js**: 
 
 ```
 ├── index.html, game.js, style.css   → prototipo web (Three.js)
+├── CLAUDE.md          → guía del proyecto para la IA (reglas, arquitectura, recetas)
+├── CONTEXTO.md        → mapa del código generado solo (archivos, funciones con línea, mapas, armas)
+├── scripts/contexto.js → genera CONTEXTO.md
+├── .githooks/         → pre-commit que mantiene CONTEXTO.md al día
 └── cpp/
-    ├── src/        → código del juego en C++ (render, mundo, armas, zombis, ragdoll, HUD, audio)
-    ├── assets/     → modelos, texturas, sonidos, música y fuentes
+    ├── src/
+    │   ├── main.cpp        → bucle principal, jugador, rondas, power-ups y modos de prueba
+    │   ├── world.cpp       → mapas, puertas, ventanas, caja misteriosa, Pack-a-Punch, corriente
+    │   ├── weapons.cpp     → armas, disparo, proyectiles, explosiones y efectos
+    │   ├── zombie.cpp      → zombis, perros, jefe final y soldados animados
+    │   ├── render.cpp      → PBR, sombras, HDR + bloom
+    │   ├── story.cpp       → modo historia (capítulos, objetivos, radio)
+    │   ├── cutscene.cpp    → cinemáticas con actores
+    │   ├── intro.cpp       → cinemática de llegada a cada mapa
+    │   ├── ally.cpp        → Milton, el compañero bot
+    │   ├── eggs.cpp        → huevos de pascua
+    │   ├── net.cpp, netlow.cpp → co-op en línea (ENet)
+    │   └── hud.cpp, audio.cpp, voice.cpp, options.cpp, ragdoll.cpp, anim.cpp, game.h
+    ├── assets/     → modelos, texturas, sonidos, voces de la historia, música y fuentes
     ├── test/       → herramientas de prueba y preparación de assets
     └── build.bat   → script de compilación
 ```
+
+## 🤖 Programar con IA
+
+El repo trae contexto listo para que Claude Code (u otra IA) arranque sin leer archivo por archivo:
+
+- **`CLAUDE.md`**: se carga solo al abrir Claude Code en la carpeta. Tiene las reglas (idioma, estilo, qué archivos no abrir), la arquitectura y recetas para agregar armas, mapas o frases.
+- **`CONTEXTO.md`**: lo genera `node scripts/contexto.js` leyendo el código: qué hace cada archivo, todas las funciones con su número de línea, mapas, armas, cinemáticas, modos de prueba y assets.
+- **Se actualiza solo**: Claude Code lo regenera después de cada edición (hook en `.claude/settings.json`) y git lo regenera en cada commit (`.githooks/pre-commit`). Después de clonar, activá el hook una vez:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+Necesita [Node.js](https://nodejs.org). Para revisar si está al día: `node scripts/contexto.js --check`.
 
 ## 🙏 Créditos
 

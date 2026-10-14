@@ -59,7 +59,7 @@ void StartReload() {
     player.reloadTime = s.reload * (HasPerk(player, P_SPEED) ? 0.5f : 1);
     player.reloadEnd = T + player.reloadTime;
     // recarga grabada según el tipo de arma (o la sintetizada si no hay)
-    const char *rs = (w.id == W_PISTOL || w.id == W_REVOLVER || w.id == W_RAYGUN || w.id == W_MAGNUM || w.id == W_FLARE) ? "reload_pistol" : (w.id == W_SMG || w.id == W_SUOMI) ? "reload_smg" : "reload_rifle";
+    const char *rs = (w.id == W_PISTOL || w.id == W_REVOLVER || w.id == W_RAYGUN || w.id == W_MAGNUM || w.id == W_FLARE) ? "reload_pistol" : (w.id == W_SMG || w.id == W_SUOMI || w.id == W_THOMPSON) ? "reload_smg" : "reload_rifle";
     Play(HasSound(rs) ? rs : "reload");
     Say(V_RELOAD, 0.2f);
 }
@@ -78,7 +78,7 @@ void AddPoints(int n) {
 void WhiteFlash(float op) { flashK = op; }
 
 static void GameOver() {
-    newRecord = !Practice() && SubmitRecord(game.mapKey, game.round, game.kills, game.heads);
+    newRecord = !Practice() && !StoryActive() && SubmitRecord(game.mapKey, game.round, game.kills, game.heads);
     game.state = GS_OVER;
     EnableCursor();
     scoped = false;
@@ -192,13 +192,14 @@ static void StartRound() {
         game.spawnT = 3.5f;
         Play("dogstart");
         Say(V_DOGS);
+        AllyOnRound(true);
         CenterMsg("¡RONDA DE PERROS!", Color{ 255, 120, 40, 255 }, 3.5f);
         return;
     }
     game.toSpawn = std::min(70, (int)roundf(5 + game.round * 3 + (game.round > 5 ? game.round * 1.5f : 0)));
     game.spawnT = 1;
     Play("round");
-    if (game.round > 1) Say(V_ROUND, 0.7f);
+    if (game.round > 1) { Say(V_ROUND, 0.7f); AllyOnRound(false); }
     if (game.round == 5) SpecialMsg(CONFIG::mensaje5);
     if (game.round == 10) SpecialMsg(CONFIG::mensaje10);
     if (game.round == 15) SpecialMsg(CONFIG::mensaje15);
@@ -400,7 +401,16 @@ static void UpdateWeapon(float dt) {
         player.reloading = false;
     }
     UpdateMelee(dt);
-    if (mouseDown && !player.downed && !player.papBusy && player.knifeT < 0 && (s.autoFire || T - mousePressedAt < 0.25f) && !player.reloading && T >= player.nextShot) {
+    // ametralladora rotativa: los cañones tienen que girar antes de disparar
+    bool spinning = true;
+    if (w.id == W_GATLING) {
+        bool want = mouseDown && !player.downed && !player.papBusy && player.knifeT < 0 && !player.reloading;
+        if (want && gatSpinK < 0.05f) Play("spin", 0.7f);
+        gatSpinK = clampf(gatSpinK + (want ? 2.5f : -1.2f) * dt, 0, 1);
+        spinning = gatSpinK >= 1;
+    } else gatSpinK = std::max(0.0f, gatSpinK - dt * 3);
+    gatSpinA += gatSpinK * 38 * dt;
+    if (spinning && mouseDown && !player.downed && !player.papBusy && player.knifeT < 0 && (s.autoFire || T - mousePressedAt < 0.25f) && !player.reloading && T >= player.nextShot) {
         if (w.mag > 0) Fire();
         else if (w.reserve > 0) StartReload();
         else { Play("empty"); player.nextShot = T + 0.3f; Say(V_NOAMMO, 0.5f); }
@@ -454,7 +464,7 @@ static void UpdateWeapon(float dt) {
 
 // ---------- Partida ----------
 static int ignoreMouse = 0;
-static void ResetGame(const std::string &mapKey) {
+void ResetGame(const std::string &mapKey) {
     zombies.clear();
     powerups.clear();
     BuildMap(mapKey.c_str());
@@ -474,6 +484,9 @@ static void ResetGame(const std::string &mapKey) {
     T = 0;
     ResetVoiceLines();
     GiveWeapon(W_PISTOL);
+    StorySetupMap();
+    AllySpawn();
+    EggsSetupMap();
     if (Practice()) {
         void ResetPractice();
         ResetPractice();
@@ -485,6 +498,16 @@ static void ResetGame(const std::string &mapKey) {
     ignoreMouse = 3;
 }
 
+void BackToMenu() {
+    NetShutdown();
+    StoryQuit();
+    game.state = GS_MENU;
+    zombies.clear();
+    BuildMap("bunker");
+    PowerOnInstant();
+    EnableCursor();
+}
+
 static void Update(float dt) {
     T += dt;
     flashK = std::max(0.0f, flashK - dt * 0.8f);
@@ -492,7 +515,10 @@ static void Update(float dt) {
     UpdateCamera();
     UpdateWeapon(dt);
     UpdateZombies(dt);
+    UpdateAlly(dt);
+    UpdateDialog();
     if (Practice()) UpdatePractice(dt); else if (!NetIsClient()) UpdateRounds(dt);   // co-op: las rondas las lleva el anfitrión
+    UpdateStory(dt);
     UpdateWorld(dt);
     UpdateProjectiles(dt);
     UpdateEffects(dt);
@@ -1030,7 +1056,18 @@ static int RunMapShots(const char *mapKey, const char *outPrefix) {
     struct View { float x, z, yaw, pitch; const char *name; };
     const View views[] = { { 0, 12, 0, 0.05f, "plaza" }, { 0, 12, 0.6f, 0.75f, "cielo" }, { 0, -20, 0, 0, "calle" },
                            { 38, 0, -1.57f, 0, "cementerio" }, { 30, 0, 1.57f, 0, "iglesia" }, { -12, 22, -2.3f, 0.02f, "estacion" }, { -20, -20, 2.4f, 0, "taller" }, { -6, 10, 0.9f, 0.15f, "arbol" }, { 45, 5, 2.75f, 0.12f, "arbolseco" } };
-    for (auto &v : views) {
+    std::vector<View> list(views, views + sizeof(views) / sizeof(views[0]));
+    static std::vector<std::string> names;
+    if (strcmp(mapKey, "pueblo")) {   // otro mapa: una vista por sala, desde una esquina hacia el centro
+        list.clear(); names.clear();
+        for (auto &r : rooms) names.push_back("sala" + r.id);
+        for (size_t i = 0; i < rooms.size(); i++) {
+            const Room &r = rooms[i];
+            float x = r.x1 + 1.6f, z = r.z1 + 1.6f, cx = (r.x1 + r.x2) / 2, cz = (r.z1 + r.z2) / 2;
+            list.push_back({ x, z, atan2f(-(cx - x), -(cz - z)), 0.0f, names[i].c_str() });
+        }
+    }
+    for (auto &v : list) {
         player.pos = Vector3{ v.x, 0, v.z }; player.yaw = v.yaw; player.pitch = v.pitch; player.vel = Vector3{ 0, 0, 0 };
         for (int i = 0; i < 10; i++) Update(0.05f);
         player.yaw = v.yaw; player.pitch = v.pitch;
@@ -1040,6 +1077,7 @@ static int RunMapShots(const char *mapKey, const char *outPrefix) {
         captureTarget = nullptr;
         Image img = LoadImageFromTexture(rt.texture);
         ImageFlipVertical(&img);
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
         ExportImage(img, TextFormat("%s_%s.png", outPrefix, v.name));
         UnloadImage(img);
     }
@@ -1158,6 +1196,319 @@ static int RunIntroTest(const char *mapKey, const char *outPrefix) {
     return 0;
 }
 
+// ---------- Prueba de los huevos de pascua (--secretos mapa salida) ----------
+static int RunEggTest(const char *mapKey, const char *outPrefix) {
+    RenderTexture2D cap = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    auto shot = [&](const char *nameIn) {
+        std::string name = nameIn;
+        captureTarget = &cap;
+        for (int i = 0; i < 2; i++) RenderFrame(false);
+        captureTarget = nullptr;
+        Image img = LoadImageFromTexture(cap.texture);
+        ImageFlipVertical(&img);
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+        ExportImage(img, TextFormat("%s_%s.png", outPrefix, name.c_str()));
+        UnloadImage(img);
+    };
+    opts.ally = true;
+    ResetGame(mapKey); game.state = GS_PLAYING; soldierView.visible = false;
+    player.maxHealth = player.health = 1e7f;
+    for (int i = 0; i < (int)links.size(); i++) OpenLinkNow(i);
+    int teddies = 0, radios = 0, shots = 0;
+    for (auto &it : interactables) {
+        if (!it.active()) continue;
+        std::string tx = it.text();
+        bool ted = tx.find("osito") != std::string::npos, rad = tx.find("la radio") != std::string::npos;
+        if (!ted && !rad) continue;
+        Vector2 p = it.pos();
+        bool inside = InsideCollider(p.x, p.y, 0.2f);
+        printf("%s en (%.1f, %.1f) sala %d%s\n", ted ? "osito" : "radio", p.x, p.y, RoomAt(p.x, p.y), inside ? " ¡DENTRO DE UNA CAJA!" : "");
+        // mirarlo de cerca
+        player.pos = Vector3{ p.x + 1.2f, 0, p.y + 0.6f };
+        player.yaw = atan2f(1.2f, 0.6f); player.pitch = -0.5f;
+        for (int k = 0; k < 4; k++) Update(0.05f);
+        player.yaw = atan2f(1.2f, 0.6f); player.pitch = -0.5f; Update(0.05f);
+        if (shots < 2) { std::string nm = ted ? "osito" : "radio"; shot((nm + std::to_string(shots++)).c_str()); }
+        it.action();
+        if (ted) teddies++; else radios++;
+    }
+    for (int k = 0; k < 400; k++) Update(0.05f);   // que suenen las frases
+    printf("ositos %d, radios %d; arma: %s (pap %d); Milton rosa: %d; grabaciones guardadas: %d\n", teddies, radios, Stats(CurWeapon().id, CurWeapon().pap).name,
+           (int)CurWeapon().pap, (int)EggRosa(), EggRadiosFound());
+    // truco CABEZON y charla con Milton
+    bigHeads = true;
+    for (int k = 0; k < 20; k++) SpawnZombie();
+    for (int k = 0; k < 200; k++) Update(0.05f);
+    for (auto &z : zombies) if (z.state == Z_CHASE) { player.pos = Vector3{ z.pos.x + 2.5f, 0, z.pos.z }; player.yaw = atan2f(2.5f, 0); player.pitch = 0.0f; break; }
+    for (int k = 0; k < 2; k++) Update(0.05f);
+    shot("cabezon");
+    return 0;
+}
+
+// ---------- Armas nuevas, carteles de tiza, caja con osito y explosiones (--armas salida) ----------
+static int RunArmasTest(const char *outPrefix) {
+    RenderTexture2D cap = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    auto shot = [&](const char *nameIn) {
+        std::string name = nameIn;   // TextFormat se reutiliza al dibujar
+        captureTarget = &cap;
+        for (int i = 0; i < 2; i++) RenderFrame(false);
+        captureTarget = nullptr;
+        Image img = LoadImageFromTexture(cap.texture);
+        ImageFlipVertical(&img);
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+        ExportImage(img, TextFormat("%s_%s.png", outPrefix, name.c_str()));
+        UnloadImage(img);
+    };
+    auto step = [&](int n) { for (int i = 0; i < n; i++) Update(0.033f); };
+    auto look = [&](float x, float z, float tx, float tz, float pitch) {
+        player.pos = Vector3{ x, 0, z }; player.yaw = atan2f(-(tx - x), -(tz - z)); player.pitch = pitch; player.vel = Vector3{ 0, 0, 0 };
+    };
+    ResetGame("practica"); game.state = GS_PLAYING; soldierView.visible = false;
+    player.maxHealth = player.health = 1e7f; player.points = 999999;
+    // cada arma nueva en primera persona
+    int ids[] = { W_THOMPSON, W_GARAND, W_CROSSBOW, W_FLAMER, W_GATLING };
+    look(0, 2, 0, -10, -0.05f);
+    for (int id : ids) { GiveWeapon(id); step(12); vm.swap = 0; vm.kick = 0; shot(TextFormat("arma_%s", WEAPONS[id].name)); }
+    // ametralladora rotativa: gira y dispara
+    GiveWeapon(W_GATLING); step(10);
+    mouseDown = true; mousePressedAt = T; step(10); printf("rotativa a los 0,33 s: giro %.2f, balas %d\n", gatSpinK, CurWeapon().mag);
+    step(30); printf("rotativa al segundo: giro %.2f, balas %d\n", gatSpinK, CurWeapon().mag); shot("rotativa_disparando"); mouseDown = false;
+    // lanzallamas contra zombis
+    for (int k = 0; k < 6; k++) SpawnZombie();
+    for (auto &z : zombies) { z.pos = Vector3{ frand(-2, 2), 0, frand(-6, -3) }; z.state = Z_CHASE; z.y = 0; }
+    GiveWeapon(W_FLAMER); step(8);
+    mouseDown = true; mousePressedAt = T; step(25); shot("lanzallamas"); mouseDown = false;
+    int burning = 0; for (auto &z : zombies) if (z.burnT > 0 || z.state == Z_DEAD) burning++;
+    printf("lanzallamas: %d de %d zombis quemados o muertos\n", burning, (int)zombies.size());
+    step(60); zombies.clear(); ClearEffects();
+    // ballesta: la flecha se clava, pita y explota
+    GiveWeapon(W_CROSSBOW); step(8); look(0, 2, 0, -14, -0.12f);
+    step(20); mouseDown = true; mousePressedAt = T; step(2); mouseDown = false;
+    printf("ballesta: flechas en el cargador %d\n", CurWeapon().mag);
+    step(10); shot("ballesta_clavada");
+    step(48); shot("ballesta_boom");
+    step(90);
+    // carteles de tiza con la forma real y el arma colgada después de comprarla
+    look(-6.8f, -12.4f, -9, -12.4f, 0.12f); step(3); shot("pared_tiza");
+    for (auto &it : interactables) if (it.active() && it.text().find("THOMPSON") != std::string::npos) it.action();
+    look(-6.8f, -12.4f, -9, -12.4f, 0.12f); step(3); shot("pared_comprada");
+    look(6.6f, -13.4f, 9, -13.4f, 0.12f); step(3); shot("pared_tiza2");
+    // caja misteriosa: el arma que sale y su nombre; después el osito
+    Vector2 bf = box.front;
+    look(bf.x + 0.3f, bf.y, box.pos.x, box.pos.y, -0.25f); step(3);
+    box.state = BOX_ROLLING; box.t = 0; box.swapT = 0; box.uses = 0; step(20); shot("caja_girando");
+    step(110); printf("caja: estado %d, arma %s\n", box.state, box.offer >= 0 ? WEAPONS[box.offer].name : "-"); shot("caja_arma");
+    box.state = BOX_IDLE; box.show = -1; step(10); shot("caja_luz");
+    box.state = BOX_TEDDY; box.t = 0; box.teddy = true; box.show = -1; step(40); shot("caja_osito");
+    step(60);
+    // explosiones: un misil contra el suelo y la explosión grande de las cinemáticas
+    ClearEffects();
+    look(0, 4, 0, -6, -0.1f); step(2);
+    Explode(Vector3{ 0, 0.3f, -6 }, 0, 1, 0, 1.5f);
+    step(2); shot("boom_0"); step(8); shot("boom_1"); step(25); shot("boom_2"); step(60); shot("boom_3");
+    ClearEffects();
+    look(0, 6, 0, -20, 0.05f); step(2);
+    ExplosionFX(Vector3{ 0, 1, -22 }, 3.0f, true);
+    step(4); shot("bigboom_0"); step(20); shot("bigboom_1"); step(60); shot("bigboom_2");
+    return 0;
+}
+
+// ---------- Foto de los uniformes (--soldados salida) ----------
+static int RunSoldierShots(const char *outPrefix) {
+    RenderTexture2D cap = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    ResetGame("bunker");
+    PowerOnInstant();
+    game.state = GS_CUTSCENE;   // sin HUD
+    zombies.clear();
+    auto shot = [&](const char *nameIn) {
+        std::string name = nameIn;
+        captureTarget = &cap;
+        for (int i = 0; i < 2; i++) RenderFrame(false);
+        captureTarget = nullptr;
+        Image img = LoadImageFromTexture(cap.texture);
+        ImageFlipVertical(&img);
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+        ExportImage(img, TextFormat("%s_%s.png", outPrefix, name.c_str()));
+        UnloadImage(img);
+    };
+    allyView.visible = false; soldierView.visible = false;
+    for (int pose = 0; pose < 2; pose++) {
+        cutsceneActors.clear();
+        for (int k = 0; k < SKIN_COUNT; k++)
+            cutsceneActors.push_back(SoldierView{ true, Vector3{ -2.4f + k * 1.6f, 0, 0 }, 0, pose ? C_TALK : C_IDLE, 0.4f + k * 0.3f, k, pose ? 0.8f : 0 });
+        cam.position = Vector3{ 0, 1.5f, 4.6f }; cam.target = Vector3{ 0, 1.0f, 0 }; cam.up = Vector3{ 0, 1, 0 }; camFov = 55;
+        shot(pose ? "hablando" : "uniformes");
+    }
+    cam.position = Vector3{ -1.4f, 1.6f, 1.4f }; cam.target = Vector3{ -0.8f, 1.45f, 0 }; camFov = 40;
+    shot("cerca");
+    // cada animación en tres momentos
+    int clips[] = { C_ATTACK, SC_DUCK, SC_PUNCH, SC_NO, SC_JUMP, SC_RUN, C_SCREAM, C_HIT, C_DIE };
+    for (int c : clips) {
+        cutsceneActors.clear();
+        for (int k = 0; k < 3; k++) cutsceneActors.push_back(SoldierView{ true, Vector3{ -1.8f + k * 1.8f, 0, 0 }, 0.5f, c, 0.25f + k * 0.45f, k % SKIN_COUNT, 0 });
+        cam.position = Vector3{ 0, 1.4f, 4.4f }; cam.target = Vector3{ 0, 0.9f, 0 }; camFov = 55;
+        shot(TextFormat("clip%d", c));
+    }
+    printf("uniformes: %d\n", SKIN_COUNT);
+    return 0;
+}
+
+// ---------- Prueba del compañero bot (--ally mapa salida) ----------
+static int RunAllyTest(const char *mapKey, const char *outPrefix) {
+    RenderTexture2D cap = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    auto shot = [&](const char *nameIn) {
+        std::string name = nameIn;
+        captureTarget = &cap;
+        for (int i = 0; i < 2; i++) RenderFrame(false);
+        captureTarget = nullptr;
+        Image img = LoadImageFromTexture(cap.texture);
+        ImageFlipVertical(&img);
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+        ExportImage(img, TextFormat("%s_%s.png", outPrefix, name.c_str()));
+        UnloadImage(img);
+    };
+    opts.ally = true;
+    ResetGame(mapKey); game.state = GS_PLAYING; soldierView.visible = false;
+    if (!ally.active) { printf("Milton no apareció\n"); return 1; }
+    player.maxHealth = player.health = 1e7f;
+    for (int i = 0; i < (int)links.size(); i++) OpenLinkNow(i);
+    float maxD = 0, sumD = 0; int n = 0, downs = 0, revivesOk = 0, teleports = 0;
+    Vector3 prevAlly = ally.pos;
+    bool wasDown = false;
+    int shots = 0;
+    for (int f = 0; f < 20 * 240; f++) {
+        // el jugador recorre las salas: cada 12 s se va al centro de la siguiente
+        if (f % 240 == 0) {
+            const Room &r = rooms[(f / 240) % rooms.size()];
+            Vector3 dst{ (r.x1 + r.x2) / 2, 0, (r.z1 + r.z2) / 2 };
+            for (int k = 0; k < 6 && InsideCollider(dst.x, dst.z, 0.5f); k++) dst.x += 1.0f;
+            player.pos = dst;
+        }
+        // y camina un poco en círculo para que Milton tenga que moverse
+        player.yaw += 0.01f;
+        if (f == 2000) AllyDamage(100000);   // derribarlo
+        if (ally.downed && f > 2000 && f < 2400) {   // el jugador va a levantarlo
+            player.pos = Vector3{ ally.pos.x + 1.0f, 0, ally.pos.z };
+            for (auto &it : interactables) if (it.hold && it.active() && it.text().find("MILTON") != std::string::npos) it.action();
+        }
+        if (f == 3200) AllyDamage(100000);   // y otra vez, para que se levante solo
+        Update(0.05f);
+        if (Vector3Distance(prevAlly, ally.pos) > 4) teleports++;
+        prevAlly = ally.pos;
+        if (ally.downed && !wasDown) downs++;
+        if (!ally.downed && wasDown) revivesOk++;
+        wasDown = ally.downed;
+        float d = hyp(ally.pos.x - player.pos.x, ally.pos.z - player.pos.z);
+        if (f % 240 > 100) { maxD = std::max(maxD, d); sumD += d; n++; }   // tras darle tiempo a llegar
+        if (shots < 3 && f > 600 && f % 400 == 0 && !ally.downed) {
+            player.yaw = atan2f(-(ally.pos.x - player.pos.x), -(ally.pos.z - player.pos.z));
+            player.pitch = -0.05f;
+            Update(0.05f);
+            std::string nm = "milton" + std::to_string(shots++); shot(nm.c_str());
+        }
+        if (f % 400 == 0) printf("t=%5.1f ronda %d  dist %.1f  vida %.0f  bajas de Milton %d  %s\n", T, game.round, d, ally.health, ally.kills, ally.downed ? "CAÍDO" : "");
+    }
+    printf("puntos del jugador: %d (empezó con 500 y no disparó)\n", player.points);
+    printf("distancia media %.1f, máxima %.1f; teletransportes %d; caídas %d, levantadas %d; bajas de Milton %d, del jugador %d\n",
+           n ? sumD / n : 0, maxD, teleports, downs, revivesOk, ally.kills, game.kills);
+    return 0;
+}
+
+// ---------- Prueba del modo historia (--story capítulo salida): juega el capítulo entero solo ----------
+const char *StoryDebug();
+Vector2 StoryDefendZone();
+static int RunStoryTest(int ch, const char *outPrefix) {
+    RenderTexture2D cap = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    auto shot = [&](const char *nameIn, bool menu = false) {
+        std::string name = nameIn;
+        captureTarget = &cap;
+        for (int i = 0; i < 2; i++) RenderFrame(menu);
+        captureTarget = nullptr;
+        Image img = LoadImageFromTexture(cap.texture);
+        ImageFlipVertical(&img);
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+        ExportImage(img, TextFormat("%s_%s.png", outPrefix, name.c_str()));
+        UnloadImage(img);
+    };
+    if (ch == 0) {   // menú principal y pantalla de capítulos
+        cam.position = Vector3{ 2, 1.8f, 7 }; cam.target = Vector3{ 0, 1.4f, -6 }; cam.up = Vector3{ 0, 1, 0 }; camFov = 70;
+        shot("menu", true);
+        storyMenuOpen = true; shot("capitulos", true); storyMenuOpen = false;
+    }
+    StoryStart(ch);
+    int n = 0;
+    while (game.state == GS_STORY && n < 2000) { UpdateStoryCards(0.05f); n++; if (n == 40) shot("tarjeta"); if (n == 120) shot("narracion"); }
+    printf("tarjetas: %.1f s, estado %d\n", n * 0.05f, game.state);
+    n = 0;
+    while (game.state == GS_INTRO && n < 1000) { UpdateIntro(0.05f); UpdateWorld(0.05f); n++; if (n == 60) shot("intro"); }
+    printf("cinemática: %.1f s, estado %d\n", n * 0.05f, game.state);
+    player.maxHealth = player.health = 1e7f;
+    for (int i = 0; i < (int)links.size(); i++) OpenLinkNow(i);   // el test no compra puertas
+    player.points = 99999;
+    std::string last;
+    int shots = 0;
+    int cutShots = 0;
+    for (int f = 0; f < 20 * 60 * 20 && (game.state == GS_PLAYING || game.state == GS_CUTSCENE); f++) {
+        // cinemática: avanzar y sacar un par de capturas
+        if (game.state == GS_CUTSCENE) {
+            int k = 0;
+            while (game.state == GS_CUTSCENE && k < 2400) {
+                UpdateCutscene(0.05f); float cdt = 0.05f * CutsceneTimeScale(); UpdateZombies(cdt); UpdateWorld(cdt); UpdateEffects(cdt); k++;
+                if (k == 50 || k == 140 || k == 260) { std::string nm = "cine" + std::to_string(cutShots++); shot(nm.c_str()); }
+            }
+            printf("t=%5.1f  cinemática de %.1f s\n", T, k * 0.05f);
+            continue;
+        }
+        // los zombis caen solos y el jugador va directo a cada objetivo (el jefe recibe daño de a poco)
+        if (f % 20 == 0) for (auto &z : zombies) if (z.state == Z_CHASE && !z.boss) KillZombie(z, false, true);
+        if (f % 10 == 0) for (auto &z : zombies) if (z.boss && z.state != Z_DEAD) { z.hp -= 600; if (z.hp <= 0) KillZombie(z, true); }
+        Update(0.05f);
+        std::string d = StoryDebug();
+        if (d != last) {
+            printf("t=%5.1f  %s\n", T, d.c_str()); last = d;
+            if (shots < 6 && d.find("hecho") == std::string::npos && d.find("paso") != std::string::npos) {
+                for (int i = 0; i < 30 && game.state == GS_PLAYING; i++) Update(0.05f);
+                UpdateCamera();
+                { std::string nm = "paso" + std::to_string(shots++); shot(nm.c_str()); }
+            }
+        }
+        if (!powerOn && f % 100 == 50 && d.find("POWER") != std::string::npos) {
+            Vector2 p; if (PowerSwitchSpot(p)) { player.pos = Vector3{ p.x, 0, p.y }; }
+            PowerOnNow();
+        }
+        if (d.find("REACH") != std::string::npos && f % 100 == 50) {
+            size_t sp = d.find("sala ");
+            std::string room = sp != std::string::npos ? d.substr(sp + 5, 1) : "A";
+            const Room &r = rooms[RoomIndex(room)];
+            Vector3 c{ (r.x1 + r.x2) / 2, 0, (r.z1 + r.z2) / 2 };
+            for (int k = 0; k < 12 && InsideCollider(c.x, c.z, 0.5f); k++) c.z -= 1.0f;
+            player.pos = c;
+        }
+        if (d.find("DEFEND") != std::string::npos) { Vector2 zc = StoryDefendZone(); if (hyp(player.pos.x - zc.x, player.pos.z - zc.y) > 3) player.pos = Vector3{ zc.x + 2.5f, 0, zc.y - 2.5f }; }
+        if ((d.find("COLLECT") != std::string::npos || d.find("PLANT") != std::string::npos) && f % 60 == 30) {
+            for (auto &it : interactables) {
+                if (!it.active()) continue;
+                std::string tx = it.text();
+                const char *keys[] = { "el diario", "la carga", "la muestra", "la ficha", "la tarjeta", "el código", "el componente" };   // ojo: "Recarga rápida" no
+                bool mine = false;
+                for (auto k : keys) if (tx.find(k) != std::string::npos) mine = true;
+                if (!mine) continue;
+                Vector2 p = it.pos();
+                if (shots < 7) { for (int k = 0; k < 4; k++) { player.pos = Vector3{ p.x + 1.6f, 0, p.y }; player.yaw = atan2f(1.0f, 0); player.pitch = -0.25f; Update(0.05f); } shot("objeto"); shots = 7; }
+                player.pos = Vector3{ p.x + 1.2f, 0, p.y };
+                for (int k = 0; k < 400 && it.active(); k++) it.action();
+                break;
+            }
+        }
+    }
+    printf("final: %s, estado %d\n", StoryDebug(), game.state);
+    if (game.state == GS_STORY) {
+        for (int i = 0; i < 30; i++) UpdateStoryCards(0.05f);
+        shot("final");
+    }
+    return 0;
+}
+
 // ---------- Medición de rendimiento (--bench mapa segundos) ----------
 static int RunBench(const char *mapKey, float secs) {
     ResetGame(mapKey); game.state = GS_PLAYING;
@@ -1194,6 +1545,16 @@ int main(int argc, char **argv) {
     test = test || shots;
     test = test || climb;
     test = test || intro;
+    bool story = argc >= 4 && !strcmp(argv[1], "--story");
+    bool allyT = argc >= 4 && !strcmp(argv[1], "--ally");
+    bool soldT = argc >= 3 && !strcmp(argv[1], "--soldados");
+    bool eggT = argc >= 4 && !strcmp(argv[1], "--secretos");
+    bool armasT = argc >= 3 && !strcmp(argv[1], "--armas");
+    test = test || armasT;
+    test = test || eggT;
+    test = test || soldT;
+    test = test || allyT;
+    test = test || story;
     ChangeDirectory(GetApplicationDirectory());
     unsigned flags = FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT;
     if (test) flags = FLAG_WINDOW_HIDDEN;
@@ -1222,6 +1583,11 @@ int main(int argc, char **argv) {
 
     if (test) recordsFile = "records_prueba.txt";
     if (intro) return RunIntroTest(argv[2], argv[3]);
+    if (story) return RunStoryTest(atoi(argv[2]), argv[3]);
+    if (allyT) return RunAllyTest(argv[2], argv[3]);
+    if (soldT) return RunSoldierShots(argv[2]);
+    if (eggT) return RunEggTest(argv[2], argv[3]);
+    if (armasT) return RunArmasTest(argv[2]);
     if (climb) return RunClimbTest();
     if (netTest) return RunNetTest(!strcmp(argv[2], "host"), argv[3], argv[4]);
     if (shots) return RunMapShots(argv[2], argv[3]);
@@ -1242,6 +1608,7 @@ int main(int argc, char **argv) {
         UpdateMusic();
         int click = MenuClicked();
         NetUpdate(dt);   // co-op: recibir, enviar y la sala de espera
+        StoryAudioTick();
         { std::string m; if (NetTakeStart(m)) { optionsOpen = false; ResetGame(m); } }
         if (game.state == GS_MENU) {
             menuT += dt;
@@ -1257,32 +1624,51 @@ int main(int argc, char **argv) {
             bool solo = NetLobbyScreen() == LB_NONE && NetRole() == NET_OFF;
             if (solo && (click == 0 || click == 1)) ResetGame(click == 0 ? "bunker" : "fabrica");
             if (solo && click == 7) ResetGame("pueblo");
+            if (solo && click == 9) ResetGame("hospital");
+            if (solo && click == 10) ResetGame("base");
+            if (solo && click == 11) ResetGame("laboratorio");
             if (solo && click == 4) ResetGame("practica");
+            if (solo && click == 30) storyMenuOpen = true;
+            if (storyMenuOpen && click >= 31 && click <= 36 && click - 31 <= StoryProgress()) { storyMenuOpen = false; StoryStart(click - 31); }
+            if (storyMenuOpen && (click == 37 || (IsKeyPressed(KEY_ESCAPE) && !optionsOpen))) storyMenuOpen = false;
             if (click == 5) optionsOpen = true;
             if (optionsOpen && (click == 6 || IsKeyPressed(KEY_ESCAPE))) { optionsOpen = false; SaveOptions(); }
             RenderFrame(game.state == GS_MENU);
             continue;
         }
-        if (game.state == GS_INTRO) {
+        if (game.state == GS_CUTSCENE) {
+            UpdateCutscene(dt);
+            float cdt = dt * CutsceneTimeScale();   // cámara lenta
+            UpdateZombies(cdt);
+            UpdateWorld(cdt);
+            UpdateEffects(cdt);
+            if (game.state != GS_CUTSCENE) ignoreMouse = 3;
+        } else if (game.state == GS_STORY) {
+            UpdateStoryCards(dt);
+            if (game.state != GS_STORY) ignoreMouse = 3;
+        } else if (game.state == GS_INTRO) {
             UpdateIntro(dt);
             UpdateWorld(dt);
             UpdateEffects(dt);
             if (game.state == GS_PLAYING) ignoreMouse = 3;
         } else if (game.state == GS_PLAYING) {
+            EggsUpdate();
             HandleInput();
             if (IsKeyPressed(KEY_ESCAPE)) { game.state = GS_PAUSED; EnableCursor(); }
             else Update(dt);
         } else if (game.state == GS_PAUSED) {
             if (NetActive()) Update(dt);   // co-op: el mundo no se detiene
+            EggsUpdate();
             if (optionsOpen) {
                 if (click == 6 || IsKeyPressed(KEY_ESCAPE)) { optionsOpen = false; SaveOptions(); }
             } else if (click == 5) optionsOpen = true;
-            else if (click == 3) { NetShutdown(); game.state = GS_MENU; zombies.clear(); BuildMap("bunker"); PowerOnInstant(); }
+            else if (click == 3) BackToMenu();
             else if ((IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && !PauseButtonHover()) || IsKeyPressed(KEY_ESCAPE)) { game.state = GS_PLAYING; DisableCursor(); ignoreMouse = 3; }
         } else if (game.state == GS_OVER) {
             if (click == 2 && NetRole() == NET_HOST && NetConnected()) NetRestart(game.mapKey);   // co-op: reinicia a los dos
+            else if (click == 2 && StoryActive()) StoryStart(StoryChapter(), true);   // historia: reintentar el capítulo
             else if (click == 2 && NetRole() != NET_CLIENT) ResetGame(game.mapKey);
-            if (click == 3) { NetShutdown(); game.state = GS_MENU; zombies.clear(); BuildMap("bunker"); PowerOnInstant(); }
+            if (click == 3) BackToMenu();
         }
         RenderFrame(game.state == GS_MENU);
     }

@@ -1,8 +1,8 @@
 // Armas: datos, modelos 3D, disparo, granadas, proyectiles, explosiones y efectos.
 #include "game.h"
 
-enum { S_PISTOL, S_SHOTGUN, S_SMG, S_RIFLE, S_SNIPER, S_RAY, S_ZAP, S_LAUNCHER, S_ROCKET, S_FLARE, S_THUNDER };
-static const char *SOUND_NAMES[] = { "pistol", "shotgun", "smg", "rifle", "sniper", "ray", "zap", "launcher", "rocket", "flareshot", "thunder" };
+enum { S_PISTOL, S_SHOTGUN, S_SMG, S_RIFLE, S_SNIPER, S_RAY, S_ZAP, S_LAUNCHER, S_ROCKET, S_FLARE, S_THUNDER, S_BOW, S_FLAME };
+static const char *SOUND_NAMES[] = { "pistol", "shotgun", "smg", "rifle", "sniper", "ray", "zap", "launcher", "rocket", "flareshot", "thunder", "crossbow", "flame" };
 
 //                 nombre               PaP                    dmg   head rate   auto   mag reserve reload spread pell recoil cost  len   sonido     proj rad splash chain tracer
 WeaponDef WEAPONS[W_COUNT] = {
@@ -22,10 +22,16 @@ WeaponDef WEAPONS[W_COUNT] = {
     { "MAGNUM .357",      "EL JUICIO FINAL",     300,  4,   0.42f, false, 6,   48,  3.0f, 0.004f, 1, 0.05f,  1200, 0.35f, S_SNIPER,   0, 0,    0,    0,  0 },
     { "ESCOPETA RECORTADA","DOBLE CONDENA",      40,   2,   0.25f, false, 2,   40,  2.0f, 0.11f,  10,0.06f,  1200, 0.4f,  S_SHOTGUN,  0, 0,    0,    0,  0 },
     { "CAÑÓN DE TRUENO",  "TORMENTA DIVINA",     1e9f, 1,   1.0f,  false, 2,   12,  3.4f, 0.0f,   1, 0.1f,   0,    0.6f,  S_THUNDER,  4, 15.0f,0,    0,  0 },
+    { "THOMPSON M1928",   "EL GÁNSTER",          55,   3,   0.08f, true,  50,  250, 2.6f, 0.022f, 1, 0.007f, 1300, 0.6f,  S_SMG,      0, 0,    0,    0,  0 },
+    { "M1 GARAND",        "EL VETERANO",         190,  4,   0.16f, false, 8,   96,  2.2f, 0.004f, 1, 0.03f,  1200, 0.8f,  S_RIFLE,    0, 0,    0,    0,  0 },
+    { "BALLESTA EXPLOSIVA","FLECHA DEL DIABLO",  1300, 1,   0.9f,  false, 1,   20,  1.4f, 0.0f,   1, 0.04f,  0,    0.6f,  S_BOW,      5, 4.2f, 0,    0,  0 },
+    { "LANZALLAMAS",      "ALIENTO DE DRAGÓN",   38,   1,   0.05f, true,  120, 360, 3.0f, 0.0f,   1, 0.002f, 0,    0.7f,  S_FLAME,    6, 7.0f, 0,    0,  0 },
+    { "AMETRALLADORA ROTATIVA","LA SEGADORA",    75,   2,   0.04f, true,  150, 450, 4.2f, 0.035f, 1, 0.004f, 0,    0.8f,  S_RIFLE,    0, 0,    0,    0,  0 },
 };
 std::vector<int> BOX_POOL = { W_SHOTGUN, W_SHOTGUN, W_SMG, W_SMG, W_RIFLE, W_RIFLE, W_LMG, W_LMG, W_SNIPER, W_SNIPER,
                               W_REVOLVER, W_REVOLVER, W_RAYGUN, W_RAYGUN, W_WUNDER, W_LAUNCHER, W_LAUNCHER, W_RPG, W_RPG,
-                              W_SUOMI, W_SUOMI, W_FLARE, W_FLARE, W_MAGNUM, W_MAGNUM, W_SAWED, W_SAWED, W_THUNDER };
+                              W_SUOMI, W_SUOMI, W_FLARE, W_FLARE, W_MAGNUM, W_MAGNUM, W_SAWED, W_SAWED, W_THUNDER,
+                              W_THOMPSON, W_THOMPSON, W_GARAND, W_GARAND, W_CROSSBOW, W_CROSSBOW, W_FLAMER, W_FLAMER, W_GATLING };
 
 // Estadísticas reales de un arma (con Pack-a-Punch si está mejorada)
 WStats Stats(int id, bool papd) {
@@ -46,13 +52,14 @@ WStats Stats(int id, bool papd) {
 // Modelos de las armas (piezas sencillas con materiales metálicos reales)
 // ---------------------------------------------------------------
 GunModel gunModels[W_COUNT];
+float gatSpinK = 0, gatSpinA = 0;
 static Mesh coneMesh;
 static std::vector<Mesh *> grenadeMeshes; static PMat *grenadeMat = nullptr;
 
 // Armas con modelo 3D real (paquete CC0 "Guns & Explosives", convertido con test/gunprep.cpp)
 static const char *REAL_GUN[W_COUNT] = { "pistol", "shotgun", "smg", "rifle", "ak47", "sniper", "luger", nullptr, nullptr, nullptr, nullptr, "suomi", "flare" };
 // Disparo grabado de cada arma (assets/sfx/<nombre>.wav)
-static const char *GUN_SND[W_COUNT] = { "pistol", "shotgun", "smg", "rifle", "ak47", "sniper", "luger", nullptr, nullptr, nullptr, nullptr, "suomi", "flare", "magnum", "sawed" };
+static const char *GUN_SND[W_COUNT] = { "pistol", "shotgun", "smg", "rifle", "ak47", "sniper", "luger", nullptr, nullptr, nullptr, nullptr, "suomi", "flare", "magnum", "sawed", nullptr, "suomi", "ak47", nullptr, nullptr, "smg" };
 static bool OneHanded(int id) { return id == W_PISTOL || id == W_REVOLVER || id == W_RAYGUN || id == W_FLARE || id == W_MAGNUM; }
 
 // Lee un .mesh: número de mallas, punto de la mano izquierda y, por malla, vértices/normales/uv/índices
@@ -149,6 +156,15 @@ static void BuildGun(int id) {
         g.parts.push_back({ &unitCyl, &M(mat), MatrixMultiply(MatrixMultiply(MatrixScale(r * 2, len, r * 2), MatrixRotateX(PI_F / 2)), MatrixTranslate(x, y, z)) });
     };
     auto grip = [&](const char *mat, float z = -0.03f) { box(0.042f, 0.12f, 0.055f, mat, 0, -0.085f, z, 0.28f); box(0.012f, 0.035f, 0.06f, "polymer", 0, -0.04f, z - 0.05f); };
+    auto cylX = [&](float r, float len, const char *mat, float x, float y, float z) {   // cilindro acostado de lado (tambor)
+        g.parts.push_back({ &unitCyl, &M(mat), MatrixMultiply(MatrixMultiply(MatrixScale(r * 2, len, r * 2), MatrixRotateZ(PI_F / 2)), MatrixTranslate(x, y, z)) });
+    };
+    auto bar = [&](Vector3 a, Vector3 b, float r, const char *mat) {   // varilla de a hasta b
+        Vector3 d = Vector3Subtract(b, a); float len = Vector3Length(d);
+        Matrix rot = QuaternionToMatrix(QuaternionFromVector3ToVector3(Vector3{ 0, 1, 0 }, Vector3Scale(d, 1 / len)));
+        Vector3 mid = Vector3Lerp(a, b, 0.5f);
+        g.parts.push_back({ &unitCyl, &M(mat), MatrixMultiply(MatrixMultiply(MatrixScale(r * 2, len, r * 2), rot), MatrixTranslate(mid.x, mid.y, mid.z)) });
+    };
     switch (id) {
     case W_PISTOL:
         box(0.045f, 0.045f, 0.22f, "gunmetal", 0, 0.022f, -0.11f);            // corredera
@@ -299,6 +315,93 @@ static void BuildGun(int id) {
         g.muzzleZ = -0.5f;
         break;
     }
+    case W_THOMPSON: {   // Thompson con cargador de tambor y aletas en el cañón
+        box(0.055f, 0.07f, 0.34f, "gunmetal", 0, 0.0f, -0.12f);                 // cajón
+        cyl(0.016f, 0.3f, "darkmetal", 0, 0.012f, -0.42f);                     // cañón
+        for (int i = 0; i < 8; i++) cyl(0.023f, 0.012f, "darkmetal", 0, 0.012f, -0.31f - i * 0.026f);   // aletas
+        cyl(0.025f, 0.05f, "gunmetal", 0, 0.012f, -0.59f);                     // compensador
+        cylX(0.088f, 0.05f, "gunmetal", 0, -0.11f, -0.17f);                     // tambor
+        cylX(0.03f, 0.056f, "darkmetal", 0, -0.11f, -0.17f);
+        box(0.04f, 0.11f, 0.05f, "wood", 0, -0.075f, -0.36f, 0.12f);            // empuñadura delantera
+        box(0.05f, 0.085f, 0.26f, "wood", 0, -0.035f, 0.16f, -0.08f);           // culata
+        box(0.052f, 0.12f, 0.03f, "wood", 0, -0.05f, 0.29f);
+        box(0.015f, 0.015f, 0.025f, "brass", 0, 0.042f, -0.16f);                // palanca de carga
+        box(0.02f, 0.03f, 0.02f, "darkmetal", 0, 0.05f, -0.02f);                // mira trasera
+        box(0.008f, 0.02f, 0.01f, "darkmetal", 0, 0.034f, -0.57f);
+        grip("wood", -0.02f);
+        g.muzzleZ = -0.62f;
+        break;
+    }
+    case W_GARAND: {   // fusil semiautomático de la Segunda Guerra, todo de madera
+        box(0.055f, 0.07f, 0.72f, "wood", 0, -0.015f, -0.14f);                  // caja
+        box(0.05f, 0.12f, 0.24f, "wood", 0, -0.055f, 0.22f, -0.12f);            // culata
+        box(0.052f, 0.13f, 0.02f, "darkmetal", 0, -0.07f, 0.34f, -0.12f);       // cantonera
+        box(0.05f, 0.06f, 0.2f, "gunmetal", 0, 0.035f, -0.08f);                 // cajón de mecanismos
+        box(0.03f, 0.02f, 0.05f, "brass", 0, 0.07f, -0.08f);                    // peine de 8 balas
+        box(0.045f, 0.03f, 0.3f, "wood", 0, 0.05f, -0.38f);                     // guardamanos superior
+        cyl(0.012f, 0.36f, "darkmetal", 0, 0.035f, -0.64f);                    // cañón
+        cyl(0.011f, 0.1f, "darkmetal", 0, 0.012f, -0.76f);                     // cilindro de gas
+        box(0.01f, 0.03f, 0.01f, "darkmetal", 0, 0.065f, -0.8f);                // mira delantera
+        box(0.03f, 0.035f, 0.025f, "darkmetal", 0, 0.08f, 0.02f);               // mira trasera
+        box(0.012f, 0.03f, 0.07f, "darkmetal", 0, -0.06f, -0.06f);              // guardamonte
+        box(0.045f, 0.1f, 0.06f, "wood", 0, -0.075f, -0.01f, 0.4f);             // garganta (agarre)
+        g.muzzleZ = -0.83f;
+        break;
+    }
+    case W_CROSSBOW: {   // ballesta con arco de metal y flecha explosiva
+        box(0.05f, 0.07f, 0.56f, "wood", 0, 0.0f, -0.12f);                      // cuerpo
+        box(0.05f, 0.1f, 0.18f, "wood", 0, -0.03f, 0.22f, -0.1f);               // culata
+        box(0.02f, 0.012f, 0.5f, "darkmetal", 0, 0.04f, -0.2f);                 // riel
+        box(0.09f, 0.05f, 0.06f, "gunmetal", 0, 0.03f, -0.42f);                 // soporte del arco
+        Vector3 tipL{ -0.3f, 0.035f, -0.34f }, tipR{ 0.3f, 0.035f, -0.34f }, nut{ 0, 0.045f, -0.12f };
+        bar(Vector3{ -0.04f, 0.035f, -0.43f }, tipL, 0.03f, "polymer");         // palas del arco
+        bar(Vector3{ 0.04f, 0.035f, -0.43f }, tipR, 0.03f, "polymer");
+        bar(tipL, nut, 0.006f, "metal");                                        // cuerda tensada
+        bar(tipR, nut, 0.006f, "metal");
+        cyl(0.006f, 0.44f, "metal", 0, 0.05f, -0.34f);                         // flecha
+        cyl(0.017f, 0.06f, "raygunred", 0, 0.05f, -0.58f);                     // carga explosiva
+        box(0.03f, 0.02f, 0.03f, "brass", 0, 0.05f, -0.14f);                    // plumas
+        cyl(0.018f, 0.12f, "darkmetal", 0, 0.09f, -0.06f);                     // mira
+        grip("wood", -0.02f);
+        g.muzzleZ = -0.62f;
+        break;
+    }
+    case W_FLAMER: {   // lanzallamas: tubo, depósito de combustible y piloto encendido
+        box(0.07f, 0.08f, 0.4f, "olive", 0, 0.0f, -0.12f);
+        cyl(0.03f, 0.36f, "darkmetal", 0, 0.012f, -0.48f);                     // tubo
+        cyl(0.04f, 0.05f, "brass", 0, 0.012f, -0.68f);                         // boquilla
+        cyl(0.008f, 0.06f, "brass", 0.035f, -0.015f, -0.66f);                  // piloto
+        cyl(0.06f, 0.3f, "raygunred", 0, -0.11f, -0.2f);                       // depósito
+        cyl(0.065f, 0.02f, "darkmetal", 0, -0.11f, -0.05f);
+        cyl(0.065f, 0.02f, "darkmetal", 0, -0.11f, -0.35f);
+        bar(Vector3{ 0.04f, -0.08f, -0.06f }, Vector3{ 0.04f, -0.01f, -0.25f }, 0.012f, "polymer");   // manguera
+        box(0.04f, 0.11f, 0.05f, "polymer", 0, -0.075f, -0.5f, 0.1f);           // empuñadura delantera
+        box(0.05f, 0.08f, 0.2f, "olive", 0, -0.02f, 0.16f);                     // culata
+        grip("polymer", -0.02f);
+        g.muzzleZ = -0.71f;
+        break;
+    }
+    case W_GATLING: {   // ametralladora rotativa: seis cañones que giran
+        box(0.12f, 0.12f, 0.3f, "gunmetal", 0, 0.0f, -0.08f);
+        box(0.03f, 0.06f, 0.16f, "darkmetal", 0, 0.1f, -0.1f);                  // asa
+        box(0.12f, 0.12f, 0.15f, "olive", 0.12f, -0.07f, -0.05f);               // caja de munición
+        box(0.04f, 0.035f, 0.14f, "brass", 0.06f, -0.01f, -0.06f, 0, 0.3f);     // cinta de balas
+        cyl(0.045f, 0.12f, "darkmetal", 0, -0.08f, -0.2f);                     // motor
+        box(0.04f, 0.11f, 0.05f, "polymer", 0, -0.11f, -0.3f, 0.1f);            // empuñadura delantera
+        grip("polymer", 0.0f);
+        g.spinStart = g.parts.size();
+        g.spinY = 0.012f;
+        for (int i = 0; i < 6; i++) {
+            float a = i * PI_F / 3;
+            cyl(0.013f, 0.56f, "darkmetal", cosf(a) * 0.045f, 0.012f + sinf(a) * 0.045f, -0.5f);
+        }
+        cyl(0.065f, 0.03f, "gunmetal", 0, 0.012f, -0.72f);
+        cyl(0.065f, 0.03f, "gunmetal", 0, 0.012f, -0.5f);
+        cyl(0.02f, 0.6f, "metal", 0, 0.012f, -0.46f);
+        g.spinEnd = g.parts.size();
+        g.muzzleZ = -0.78f;
+        break;
+    }
     case W_RPG: {
         cyl(0.055f, 0.85f, "olive", 0, 0.03f, -0.4f);                          // tubo al hombro
         cyl(0.064f, 0.06f, "darkmetal", 0, 0.03f, -0.1f);
@@ -313,7 +416,7 @@ static void BuildGun(int id) {
     }
     // manos y mangas
     bool two = !OneHanded(id);
-    float fz = id == W_RPG ? -0.35f : id == W_THUNDER ? -0.3f : -L * 0.72f;
+    float fz = id == W_RPG ? -0.35f : id == W_THUNDER ? -0.3f : id == W_THOMPSON ? -0.36f : id == W_FLAMER ? -0.5f : id == W_GATLING ? -0.3f : id == W_CROSSBOW ? -0.3f : -L * 0.72f;
     AddHands(g, two, Vector3{ 0, -0.015f, fz });
 }
 
@@ -339,24 +442,78 @@ void DrawGun(const GunModel &g, Matrix tf, bool papd, bool hands) {
             if (g.papMat) m = g.papMat;
             else if (m == gm || m == ol) m = camo;
         }
-        DrawPM(*p.mesh, *m, MatrixMultiply(p.local, tf));
+        Matrix local = p.local;
+        if (i >= g.spinStart && i < g.spinEnd)   // cañones que giran alrededor del eje
+            local = MatrixMultiply(local, MatrixMultiply(MatrixMultiply(MatrixTranslate(0, -g.spinY, 0), MatrixRotateZ(gatSpinA)), MatrixTranslate(0, g.spinY, 0)));
+        DrawPM(*p.mesh, *m, MatrixMultiply(local, tf));
     }
 }
 
 // ---------------------------------------------------------------
 // Efectos: partículas, trazadoras, explosiones, humo y marcas
 // ---------------------------------------------------------------
-struct Particle { Vector3 p, v; float life, max, size, glow; Color c; bool additive; float grav; };
+struct Particle { Vector3 p, v; float life, max, size, glow; Color c; bool additive; float grav; bool flame = false, spark = false; float rot = 0; };
 struct Tracer { std::vector<Vector3> pts; Color c; float t, life; };
 struct Boom { Vector3 p; float t, size; };
-struct Smoke { Vector3 p; float t, life, size; };
+// humo: sube, se frena, se abre y gira despacio; "heat" lo tiñe de naranja al principio (sale del fuego)
+struct Smoke { Vector3 p; float t, life, size; bool dark = false; Vector3 v{ 0, 0.5f, 0 }; float rot = 0, spin = 0, drag = 0.4f, heat = 0; int tex = 0; };
+struct FirePuff { Vector3 p, v; float t, life, size, rot, spin; bool smokeAfter; };   // bola de fuego: de blanco a rojo y termina en humo negro
+struct Debris { Vector3 p, v, axis; float rot, spin, t, life, size; PMat *mat; bool trail, fire; float trailT; };   // escombros que vuelan y rebotan
+struct Shock { Vector3 p; float t, life, size; };   // onda expansiva sobre el suelo
 struct Decal { int type; Vector3 p, n; float size, rot; };
 static std::vector<Particle> particles;
 static std::vector<Tracer> tracers;
 static std::vector<Boom> booms;
 static std::vector<Smoke> smokes;
+static std::vector<FirePuff> firePuffs;
+static std::vector<Debris> debris;
+static std::vector<Shock> shocks;
 static std::vector<Decal> decals;
-Vector3 boomLightPos{}; float boomLightI = 0;
+Vector3 boomLightPos{}; float boomLightI = 0; static float boomLightDecay = 90;
+
+// ---------- Texturas de fuego y humo hechas con ruido ----------
+static float Hash2(int x, int y, int seed) { unsigned h = (unsigned)x * 374761393u + (unsigned)y * 668265263u + (unsigned)seed * 2147483647u; h = (h ^ (h >> 13)) * 1274126177u; return ((h ^ (h >> 16)) & 0xffff) / 65535.0f; }
+static float VNoise(float x, float y, int seed) {
+    int xi = (int)floorf(x), yi = (int)floorf(y); float fx = x - xi, fy = y - yi;
+    fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    float a = Hash2(xi, yi, seed), b = Hash2(xi + 1, yi, seed), c = Hash2(xi, yi + 1, seed), d = Hash2(xi + 1, yi + 1, seed);
+    return lerpf(lerpf(a, b, fx), lerpf(c, d, fx), fy);
+}
+static float Fbm(float x, float y, int seed) { float s = 0, a = 0.5f; for (int o = 0; o < 5; o++) { s += VNoise(x, y, seed + o * 17) * a; x *= 2.03f; y *= 2.03f; a *= 0.5f; } return s / 0.97f; }
+static Texture2D texFire{}, texPuff[3]{}, texRing{};
+static Texture2D FxTex(int kind, int seed) {
+    const int N = 128;
+    Image img = GenImageColor(N, N, BLANK);
+    Color *px = (Color *)img.data;
+    for (int y = 0; y < N; y++) for (int x = 0; x < N; x++) {
+        float u = (x + 0.5f) / N * 2 - 1, v = (y + 0.5f) / N * 2 - 1, r = sqrtf(u * u + v * v);
+        float n = Fbm(x / 22.0f, y / 22.0f, seed);
+        float a = 0, l = 1;
+        if (kind == 0) {        // llama: núcleo brillante con lenguas irregulares
+            a = clampf((1 - r * (1.05f + (0.5f - n) * 0.9f)) * 1.8f, 0, 1);
+            a *= 0.55f + 0.7f * n; l = a;
+        } else if (kind == 1) { // bocanada de humo: borde roto y volumen por dentro
+            float edge = 1 - r - (n - 0.5f) * 0.55f;
+            a = clampf(edge * 2.2f, 0, 1) * (0.55f + 0.45f * n);
+            l = 0.62f + 0.38f * Fbm(x / 9.0f + 7, y / 9.0f, seed + 3) - v * 0.15f;   // más claro arriba
+        } else {                // anillo de la onda expansiva
+            a = expf(-powf((r - 0.78f) / 0.09f, 2)) * (0.6f + 0.5f * n); l = a;
+        }
+        unsigned char L = (unsigned char)(clampf(l, 0, 1) * 255);
+        px[y * N + x] = Color{ L, L, L, (unsigned char)(clampf(a, 0, 1) * 255) };
+    }
+    Texture2D t = LoadTextureFromImage(img);
+    UnloadImage(img);
+    GenTextureMipmaps(&t);
+    SetTextureFilter(t, TEXTURE_FILTER_TRILINEAR);
+    return t;
+}
+static void InitFxTextures() {
+    if (texFire.id) return;
+    texFire = FxTex(0, 11);
+    for (int i = 0; i < 3; i++) texPuff[i] = FxTex(1, 40 + i * 9);
+    texRing = FxTex(2, 5);
+}
 
 
 void Burst(Vector3 p, Color c, int n, float speed, float size, float glow) {
@@ -367,6 +524,7 @@ void Burst(Vector3 p, Color c, int n, float speed, float size, float glow) {
     }
 }
 static void AddTracer(std::vector<Vector3> pts, Color c, float life) { tracers.push_back({ pts, c, life, life }); }
+void AllyTracer(Vector3 a, Vector3 b) { AddTracer({ a, b }, Color{ 255, 220, 150, 255 }, 0.06f); }
 
 void AddDecal(int type, Vector3 p, Vector3 n) {
     float size = type == 0 ? 0.12f : type == 1 ? frand(1.2f, 1.8f) : 3.0f;
@@ -428,13 +586,14 @@ static void ChainLightning(int first, int count) {
     ShowHit(true);
 }
 
-struct Projectile { Vector3 p, v; bool rocket; float t, smokeT, dmg, radius; bool flare = false; };
+struct Projectile { Vector3 p, v; bool rocket; float t, smokeT, dmg, radius; bool flare = false;
+                    bool bolt = false, stuck = false; int stuckId = -1; Vector3 off{}; float fuse = 0, beepT = 0; };   // flecha de ballesta: se clava y explota
 struct FirePatch { Vector3 p; float t, radius, dps; };   // fuego de una bengala en el suelo
 static std::vector<FirePatch> firePatches;
 static std::vector<Projectile> projectiles;
 struct Grenade { Vector3 p, v; float t, rot; };
 static std::vector<Grenade> grenades;
-void ClearEffects() { particles.clear(); tracers.clear(); booms.clear(); smokes.clear(); decals.clear(); firePatches.clear(); projectiles.clear(); grenades.clear(); }
+void ClearEffects() { particles.clear(); tracers.clear(); booms.clear(); smokes.clear(); decals.clear(); firePatches.clear(); projectiles.clear(); grenades.clear(); firePuffs.clear(); debris.clear(); shocks.clear(); }
 
 static void LaunchProjectile(const WStats &s, float dmgMul) {
     bool rocket = s.projectile == 2;
@@ -444,8 +603,40 @@ static void LaunchProjectile(const WStats &s, float dmgMul) {
     dir = Vector3Normalize(dir);
     Vector3 p = Vector3Add(cam.position, Vector3Scale(dir, 0.7f));
     p.y -= 0.12f;
-    bool flare = s.projectile == 3;
-    projectiles.push_back({ p, Vector3Scale(dir, rocket ? 34.0f : flare ? 32.0f : 26.0f), rocket, 0, 0, s.dmg * dmgMul * (1 + game.round * 0.1f), s.radius, flare });
+    bool flare = s.projectile == 3, bolt = s.projectile == 5;
+    Projectile pr{ p, Vector3Scale(dir, rocket ? 34.0f : flare ? 32.0f : bolt ? 55.0f : 26.0f), rocket, 0, 0, s.dmg * dmgMul * (1 + game.round * 0.1f), s.radius, flare };
+    pr.bolt = bolt;
+    projectiles.push_back(pr);
+}
+
+// Lanzallamas: un chorro de fuego en cono que quema todo lo que alcanza (no atraviesa paredes)
+static bool RayWorld(Ray r, float maxD, float &dist, Vector3 &point, Vector3 &normal);
+static void FlameStream(const WStats &s, float dmgMul) {
+    Vector3 fwd = Vector3Normalize(Vector3Subtract(cam.target, cam.position));
+    Vector3 muzzle = Vector3Transform(Vector3{ 0, gunModels[W_FLAMER].muzzleY, gunModels[W_FLAMER].muzzleZ }, gunWorld);
+    float range = s.radius;
+    { float wd; Vector3 wp, wn; if (RayWorld(Ray{ cam.position, fwd }, range, wd, wp, wn)) range = std::max(0.8f, wd); }
+    for (auto &z : zombies) {
+        if (z.state == Z_DEAD || z.puppet || (z.state == Z_RISE && z.y < -1.2f)) continue;
+        Vector3 c{ z.pos.x, z.y + 1.0f, z.pos.z };
+        Vector3 d = Vector3Subtract(c, cam.position);
+        float dist = Vector3Length(d);
+        if (dist > range + 0.4f || dist < 0.01f) continue;
+        if (Vector3DotProduct(Vector3Scale(d, 1 / dist), fwd) < 0.93f - 0.04f * (1 - dist / range)) continue;   // cono de ~22°
+        DamageZombie(z, s.dmg * dmgMul, 1, false, c, false);
+        z.burnT = 4.0f; z.burnDps = std::max(z.burnDps, s.dmg * 6.0f);
+    }
+    // llamas: salen rápido, se abren y suben, de blanco amarillento a rojo y después humo
+    for (int i = 0; i < 8; i++) {
+        Vector3 v = Vector3Scale(Vector3Normalize(Vector3Add(fwd, Vector3{ frand(-0.07f, 0.07f), frand(-0.04f, 0.08f), frand(-0.07f, 0.07f) })), frand(11, 15) * range / 7.0f);
+        Particle q{ Vector3Add(muzzle, Vector3Scale(fwd, frand(0, 0.3f))), v, 0, 0, frand(0.06f, 0.1f), 6,
+                    frand(0, 1) < 0.5f ? Color{ 255, 170, 60, 255 } : Color{ 255, 100, 30, 255 }, true, -2.5f };
+        q.max = q.life = frand(0.45f, 0.6f);
+        q.flame = true;
+        particles.push_back(q);
+    }
+    if (frand(0, 1) < 0.35f) smokes.push_back({ Vector3Add(cam.position, Vector3Scale(fwd, range * frand(0.6f, 0.95f))), 0, frand(1.2f, 1.8f), frand(0.6f, 1.0f), true });
+    boomLightPos = Vector3Add(cam.position, Vector3Scale(fwd, std::min(range, 3.0f))); boomLightI = std::max(boomLightI, 12.0f);
 }
 
 // Prende fuego a los zombis cercanos (daño por segundo durante unos segundos)
@@ -508,7 +699,9 @@ void Fire() {
     bool dt2 = HasPerk(player, P_DOUBLE);
     w.mag--;
     player.nextShot = T + s.rate * (dt2 ? 0.7f : 1);
-    if (GUN_SND[w.id] && HasSound(TextFormat("g_%s", GUN_SND[w.id]))) {
+    static float flameSndT = 0;
+    if (w.id == W_FLAMER) { if (T > flameSndT || T < flameSndT - 1) { Play("flame", 0.8f); flameSndT = T + 0.2f; } }   // un rugido continuo, no un disparo por llama
+    else if (GUN_SND[w.id] && HasSound(TextFormat("g_%s", GUN_SND[w.id]))) {
         Play(TextFormat("g_%s", GUN_SND[w.id]), 0.9f);    // disparo grabado
         Play(SOUND_NAMES[s.sound], 0.3f);                  // más el golpe grave sintetizado, para dar cuerpo
     } else Play(SOUND_NAMES[s.sound]);
@@ -526,6 +719,13 @@ void Fire() {
         if (w.mag <= 0 && w.reserve > 0) StartReload();
         return;
     }
+    if (s.projectile == 6) {   // lanzallamas
+        vm.flash = 0; vm.kick = std::min(vm.kick, 0.15f);
+        FlameStream(s, dt2 ? 1.25f : 1);
+        if (w.mag <= 0 && w.reserve > 0) StartReload();
+        return;
+    }
+    if (w.id == W_GARAND && w.mag == 0) Play("ping", 0.8f);   // el peine sale volando: ¡ping!
 
     if (s.projectile) {
         LaunchProjectile(s, dt2 ? 1.25f : 1);
@@ -587,16 +787,92 @@ void ThrowGrenade() {
     Play("pin");
 }
 
+// Lo que se ve y se oye de una explosión (sin daño): destello, bola de fuego que se vuelve humo negro,
+// columna de humo, polvo que corre por el suelo, chispas, escombros que rebotan y onda expansiva.
+// big: explosión de cinemática (más fuego, humo que dura mucho y escombros encendidos)
+static Vector3 RandDir(float minY) {
+    for (;;) {
+        Vector3 d{ frand(-1, 1), frand(minY, 1), frand(-1, 1) };
+        float l = Vector3Length(d);
+        if (l > 0.2f && l <= 1) return Vector3Scale(d, 1 / l);
+    }
+}
+void ExplosionFX(Vector3 p, float size, bool big) {
+    float s = size, sq = sqrtf(size);
+    Play("boom", big ? 1.0f : 0.95f);
+    if (s > 1.2f || big) Play("bigboom", big ? 1.0f : 0.7f);
+    Play("debris", 0.5f);
+    boomLightPos = Vector3{ p.x, std::max(p.y, 1.5f), p.z };
+    boomLightI = std::max(boomLightI, 45 * s);
+    boomLightDecay = big ? 14 : 55;
+    booms.push_back({ p, 0, s });
+    bool ground = p.y < 2.0f;
+    // bola de fuego
+    int nf = (int)((big ? 22 : 14) * s);
+    for (int i = 0; i < nf; i++) {
+        Vector3 d = RandDir(ground ? -0.1f : -1);
+        float sp = frand(1.2f, 4.5f) * sq * (big ? 1.4f : 1);
+        firePuffs.push_back({ Vector3Add(p, Vector3Scale(d, 0.25f * s)), Vector3Add(Vector3Scale(d, sp), Vector3{ 0, frand(0.5f, 1.5f), 0 }),
+                              -frand(0, 0.08f), frand(0.45f, 0.8f) * (big ? 1.7f : 1), frand(0.9f, 1.5f) * s, frand(0, 360), frand(-90, 90), frand(0, 1) < 0.6f });
+    }
+    // columna de humo negro (sube y se abre arriba)
+    int ns = (int)((big ? 26 : 9) * s);
+    for (int i = 0; i < ns; i++) {
+        Smoke sm{ Vector3Add(p, Vector3{ frand(-0.6f, 0.6f) * s, frand(0, 0.8f) * s, frand(-0.6f, 0.6f) * s }), -frand(0.05f, 0.4f), frand(3.0f, 5.0f) * (big ? 2.6f : 1), frand(1.0f, 1.7f) * s, true };
+        sm.v = Vector3{ frand(-1, 1) * 0.8f * sq, frand(1.0f, 2.6f) * sq * (big ? 1.6f : 1), frand(-1, 1) * 0.8f * sq };
+        if (!MapOutdoor()) { sm.v.x *= 1.8f; sm.v.z *= 1.8f; sm.v.y *= 0.4f; }   // bajo techo el humo se abre hacia los costados
+        sm.rot = frand(0, 360); sm.spin = frand(-25, 25); sm.drag = MapOutdoor() ? 0.55f : 0.9f; sm.heat = 1; sm.tex = irand(3);
+        smokes.push_back(sm);
+    }
+    // polvo que sale corriendo a ras del suelo
+    if (ground) for (int i = 0; i < (big ? 22 : 14); i++) {
+        float a = i * 2 * PI_F / (big ? 22 : 14) + frand(-0.15f, 0.15f);
+        Smoke sm{ Vector3{ p.x + cosf(a) * 0.4f * s, 0.35f * sq, p.z + sinf(a) * 0.4f * s }, 0, frand(1.6f, 2.6f), frand(0.7f, 1.1f) * s };
+        float sp = frand(5, 8) * sq;
+        sm.v = Vector3{ cosf(a) * sp, frand(0.2f, 0.6f), sinf(a) * sp };
+        sm.rot = frand(0, 360); sm.spin = frand(-40, 40); sm.drag = 2.6f; sm.tex = irand(3);
+        smokes.push_back(sm);
+    }
+    // chispas que caen y rebotan
+    for (int i = 0; i < (int)(34 * s); i++) {
+        Vector3 d = RandDir(ground ? 0.05f : -0.6f);
+        Particle q{ p, Vector3Scale(d, frand(5, 16) * sq), 0, 0, frand(0.018f, 0.035f), 6, frand(0, 1) < 0.5f ? Color{ 255, 210, 130, 255 } : Color{ 255, 150, 60, 255 }, true, 9.8f };
+        q.max = q.life = frand(0.5f, 1.5f);
+        q.spark = true;
+        particles.push_back(q);
+    }
+    // escombros
+    PMat *mats[] = { &M("concwall"), &M("rust"), &M("darkmetal"), &M("planks") };
+    for (int i = 0; i < (int)((big ? 18 : 9) * s); i++) {
+        Vector3 d = RandDir(ground ? 0.35f : -0.4f);
+        Debris db{ Vector3Add(p, Vector3Scale(d, 0.2f)), Vector3Scale(d, frand(4, 11) * sq), Vector3Normalize(Vector3{ frand(-1, 1), frand(-1, 1), frand(-1, 1) }),
+                   frand(0, 6), frand(-14, 14), 0, frand(4, 7), frand(0.05f, 0.15f) * std::min(s, 2.0f), mats[irand(4)], frand(0, 1) < 0.45f, frand(0, 1) < (big ? 0.5f : 0.25f), 0 };
+        debris.push_back(db);
+    }
+    if (debris.size() > 160) debris.erase(debris.begin(), debris.begin() + (debris.size() - 160));
+    // onda expansiva
+    shocks.push_back({ Vector3{ p.x, ground ? 0.06f : p.y, p.z }, 0, big ? 0.8f : 0.45f, 7 * s });
+    if (smokes.size() > 420) smokes.erase(smokes.begin(), smokes.begin() + (smokes.size() - 420));
+}
+
+// Fuego que sigue ardiendo (incendios de las cinemáticas): llamas que suben y humo negro
+void FireFX(Vector3 p, float spread, float k, float dt) {
+    if (frand(0, 1) < dt * 26 * k) {
+        Vector3 q{ p.x + frand(-spread, spread), p.y + frand(-0.2f, 0.4f), p.z + frand(-spread, spread) };
+        firePuffs.push_back({ q, Vector3{ frand(-0.3f, 0.3f), frand(1.5f, 3.2f), frand(-0.3f, 0.3f) }, 0, frand(0.6f, 1.1f), frand(0.8f, 1.6f) * (0.6f + 0.4f * k), frand(0, 360), frand(-60, 60), frand(0, 1) < 0.45f });
+    }
+    if (frand(0, 1) < dt * 6 * k) {
+        Smoke sm{ Vector3{ p.x + frand(-spread, spread) * 0.7f, p.y + 1.8f, p.z + frand(-spread, spread) * 0.7f }, 0, frand(5, 8), frand(1.5f, 2.4f), true };
+        sm.v = Vector3{ frand(-0.3f, 0.3f), frand(1.6f, 2.6f), frand(-0.3f, 0.3f) };
+        sm.rot = frand(0, 360); sm.spin = frand(-15, 15); sm.drag = 0.15f; sm.heat = 0.6f; sm.tex = irand(3);
+        smokes.push_back(sm);
+    }
+}
+
 // dmg: daño en el centro · radius: alcance · selfDmg: daño máximo al jugador si está cerca
 void Explode(Vector3 p, float dmg, float radius, float selfDmg, float size) {
-    Play("boom");
     PushProps(p, radius * 1.3f, std::min(size, 1.5f));
-    boomLightPos = Vector3{ p.x, std::max(p.y, 1.5f), p.z };
-    boomLightI = 40 * size;
-    booms.push_back({ p, 0, size });
-    for (int i = 0; i < (int)(10 * size); i++) smokes.push_back({ Vector3Add(p, Vector3{ frand(-1, 1) * size, frand(0, 1), frand(-1, 1) * size }), -frand(0, 0.3f), frand(1.5f, 2.6f), frand(1.5f, 2.5f) * size });
-    Burst(p, Color{ 255, 170, 51, 255 }, (int)(25 * size), 6 * size, 0.06f, 6);
-    Burst(p, Color{ 60, 60, 60, 255 }, (int)(15 * size), 3, 0.08f, 1);
+    ExplosionFX(p, size, false);
     AddDecal(2, Vector3{ p.x, 0.0f, p.z }, Vector3{ 0, 1, 0 });
     for (auto &z : zombies) {
         if (z.state == Z_DEAD) continue;
@@ -632,18 +908,35 @@ void UpdateProjectiles(float dt) {
     for (int i = (int)projectiles.size() - 1; i >= 0; i--) {
         Projectile &pr = projectiles[i];
         pr.t += dt;
-        if (!pr.rocket) pr.v.y -= (pr.flare ? 3 : 9) * dt;
+        if (pr.stuck) {   // flecha clavada: pita cada vez más rápido y revienta
+            if (pr.stuckId >= 0)
+                for (auto &z : zombies) if (z.id == pr.stuckId) { pr.p = Vector3Add(Vector3{ z.pos.x, z.y, z.pos.z }, pr.off); break; }
+            pr.fuse -= dt; pr.beepT -= dt;
+            if (pr.beepT <= 0) { pr.beepT = 0.1f + pr.fuse * 0.25f; PlayAt("beep", pr.p, 30); }
+            if (pr.fuse <= 0) { Explode(pr.p, pr.dmg, pr.radius, 20, 1.3f); projectiles.erase(projectiles.begin() + i); }
+            continue;
+        }
+        if (!pr.rocket) pr.v.y -= (pr.flare ? 3 : pr.bolt ? 2.5f : 9) * dt;
         bool hit = pr.t > 5;
+        int hitZ = -1;
         for (int k = 0; k < 3 && !hit; k++) {
             pr.p = Vector3Add(pr.p, Vector3Scale(pr.v, dt / 3));
             if (pr.p.y < 0.05f || pr.p.y > H - 0.05f) hit = true;
             else {
                 for (auto &b : solids) if (pr.p.x > b.min.x && pr.p.x < b.max.x && pr.p.z > b.min.z && pr.p.z < b.max.z && pr.p.y > b.min.y && pr.p.y < b.max.y) { hit = true; break; }
                 if (!hit) for (auto &z : zombies) {
-                    if (z.state == Z_DEAD || z.state == Z_RISE) continue;
-                    if (pr.p.y < 2.0f && hyp(z.pos.x - pr.p.x, z.pos.z - pr.p.z) < 0.5f) { hit = true; break; }
+                    if (z.state == Z_DEAD || z.state == Z_RISE || z.puppet) continue;
+                    if (pr.p.y < 2.0f && hyp(z.pos.x - pr.p.x, z.pos.z - pr.p.z) < 0.5f) { hit = true; hitZ = z.id; break; }
                 }
             }
+        }
+        if (hit && pr.bolt) {   // la flecha se clava donde pegó (en el zombi lo sigue)
+            pr.p = Vector3Subtract(pr.p, Vector3Scale(Vector3Normalize(pr.v), 0.12f));
+            pr.stuck = true; pr.stuckId = hitZ; pr.fuse = 1.3f; pr.beepT = 0;
+            if (hitZ >= 0) for (auto &z : zombies) if (z.id == hitZ) { pr.off = Vector3Subtract(pr.p, Vector3{ z.pos.x, z.y, z.pos.z }); DamageZombie(z, 50, 1, false, pr.p, false); }
+            Play("hit", 0.6f);
+            Burst(pr.p, Color{ 120, 110, 100, 255 }, 5, 1.5f, 0.04f, 1);
+            continue;
         }
         if (pr.flare) {   // estela de chispas rojas
             pr.smokeT -= dt;
@@ -700,7 +993,17 @@ void DrawProjectiles() {
         float yaw = atan2f(-d.x, -d.z), pitch = asinf(clampf(d.y, -1, 1));
         Matrix rot = MatrixMultiply(MatrixRotateX(pitch), MatrixRotateY(yaw));
         if (pr.rocket) DrawPM(coneMesh, M("olive"), MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.07f, 0.28f, 0.07f), MatrixRotateX(-PI_F / 2)), rot), MatrixTranslate(pr.p.x, pr.p.y, pr.p.z)));
+        else if (pr.bolt) {   // flecha con su carga roja
+            Matrix base = MatrixMultiply(rot, MatrixTranslate(pr.p.x, pr.p.y, pr.p.z));
+            DrawPM(unitCyl, M("metal"), MatrixMultiply(MatrixMultiply(MatrixScale(0.014f, 0.5f, 0.014f), MatrixMultiply(MatrixRotateX(PI_F / 2), MatrixTranslate(0, 0, 0.1f))), base));
+            DrawPM(unitCyl, M("raygunred"), MatrixMultiply(MatrixMultiply(MatrixScale(0.036f, 0.07f, 0.036f), MatrixMultiply(MatrixRotateX(PI_F / 2), MatrixTranslate(0, 0, -0.14f))), base));
+        }
         else DrawPM(unitCyl, M("brass"), MatrixMultiply(MatrixMultiply(MatrixMultiply(MatrixScale(0.12f, 0.14f, 0.12f), MatrixRotateX(PI_F / 2)), rot), MatrixTranslate(pr.p.x, pr.p.y, pr.p.z)));
+    }
+    // escombros de las explosiones
+    for (auto &d : debris) {
+        float sc = d.size * (d.t > d.life - 0.6f ? clampf((d.life - d.t) / 0.6f, 0.01f, 1) : 1);
+        DrawPM(unitCube, *d.mat, MatrixMultiply(MatrixMultiply(MatrixScale(sc, sc * 0.7f, sc * 1.2f), MatrixRotate(d.axis, d.rot)), MatrixTranslate(d.p.x, d.p.y, d.p.z)));
     }
 }
 
@@ -709,18 +1012,78 @@ void UpdateEffects(float dt) {
         Particle &p = particles[i];
         p.life -= dt;
         p.v.y -= p.grav * dt;
+        if (p.flame) p.v = Vector3Scale(p.v, expf(-2.2f * dt));   // el chorro de fuego se frena y sube
         p.p = Vector3Add(p.p, Vector3Scale(p.v, dt));
-        if (p.p.y < 0.02f) { p.p.y = 0.02f; p.v = Vector3{ 0, 0, 0 }; }
+        if (p.p.y < 0.02f) {
+            p.p.y = 0.02f;
+            if (p.spark && fabsf(p.v.y) > 1.2f) { p.v.y = -p.v.y * 0.35f; p.v.x *= 0.6f; p.v.z *= 0.6f; }   // las chispas rebotan
+            else p.v = Vector3{ 0, 0, 0 };
+        }
         if (p.life <= 0) particles.erase(particles.begin() + i);
     }
     for (int i = (int)tracers.size() - 1; i >= 0; i--) { tracers[i].t -= dt; if (tracers[i].t <= 0) tracers.erase(tracers.begin() + i); }
-    for (int i = (int)booms.size() - 1; i >= 0; i--) { booms[i].t += dt; if (booms[i].t > 0.45f) booms.erase(booms.begin() + i); }
+    for (int i = (int)booms.size() - 1; i >= 0; i--) { booms[i].t += dt; if (booms[i].t > 0.3f) booms.erase(booms.begin() + i); }
     for (int i = (int)smokes.size() - 1; i >= 0; i--) {
         Smoke &s = smokes[i];
-        s.t += dt; s.p.y += dt * 0.5f;
+        s.t += dt;
+        if (s.t < 0) continue;
+        s.v = Vector3Scale(s.v, expf(-s.drag * dt));
+        if (s.dark) s.v.y += dt * (MapOutdoor() ? 0.25f : 0.06f);   // el humo caliente sigue subiendo
+        s.p = Vector3Add(s.p, Vector3Scale(s.v, dt));
+        if (s.p.y > H - 0.4f && !MapOutdoor()) { s.p.y = H - 0.4f; s.v.y = 0; }   // bajo techo se aplasta contra el techo
+        s.rot += s.spin * dt;
         if (s.t > s.life) smokes.erase(smokes.begin() + i);
     }
-    boomLightI = std::max(0.0f, boomLightI - dt * 90);
+    for (int i = (int)firePuffs.size() - 1; i >= 0; i--) {
+        FirePuff &f = firePuffs[i];
+        f.t += dt;
+        if (f.t < 0) continue;
+        f.v = Vector3Scale(f.v, expf(-3.0f * dt));
+        f.v.y += dt * 2.2f;
+        f.p = Vector3Add(f.p, Vector3Scale(f.v, dt));
+        f.rot += f.spin * dt;
+        if (f.t > f.life) {
+            if (f.smokeAfter) {   // la llama se apaga en humo negro
+                Smoke sm{ f.p, 0, frand(2.0f, 3.5f), f.size * 1.1f, true };
+                sm.v = Vector3Add(Vector3Scale(f.v, 0.5f), Vector3{ 0, 0.8f, 0 });
+                sm.rot = f.rot; sm.spin = f.spin * 0.3f; sm.drag = 0.5f; sm.heat = 0.5f; sm.tex = irand(3);
+                smokes.push_back(sm);
+            }
+            firePuffs.erase(firePuffs.begin() + i);
+        }
+    }
+    for (int i = (int)debris.size() - 1; i >= 0; i--) {
+        Debris &d = debris[i];
+        d.t += dt;
+        d.v.y -= 9.8f * dt;
+        float nx = d.p.x + d.v.x * dt, nz = d.p.z + d.v.z * dt;
+        if (InsideCollider(nx, d.p.z, d.size * 0.5f)) d.v.x *= -0.4f; else d.p.x = nx;
+        if (InsideCollider(d.p.x, nz, d.size * 0.5f)) d.v.z *= -0.4f; else d.p.z = nz;
+        d.p.y += d.v.y * dt;
+        if (d.p.y < d.size * 0.4f) {   // rebota y rueda hasta quedarse quieto
+            d.p.y = d.size * 0.4f;
+            if (fabsf(d.v.y) > 1.0f) { d.v.y = -d.v.y * 0.3f; if (d.size > 0.08f && fabsf(d.v.y) > 1.5f) Burst(d.p, Color{ 110, 100, 90, 255 }, 2, 0.8f, 0.05f, 1); }
+            else d.v.y = 0;
+            d.v.x *= 0.7f; d.v.z *= 0.7f; d.spin *= 0.6f;
+        }
+        if (d.p.y > H - 0.1f && !MapOutdoor()) { d.p.y = H - 0.1f; d.v.y = -fabsf(d.v.y) * 0.3f; }
+        d.rot += d.spin * dt;
+        bool flying = d.v.y != 0 || d.p.y > d.size;
+        d.trailT -= dt;
+        if (d.trailT <= 0 && d.t < 2.5f && (d.trail || d.fire) && flying) {
+            d.trailT = 0.035f;
+            if (d.fire) firePuffs.push_back({ d.p, Vector3{ 0, 0.3f, 0 }, 0, 0.25f, d.size * 4, frand(0, 360), 0, false });
+            Smoke sm{ d.p, 0, frand(0.8f, 1.4f), d.size * 3.5f, d.fire };
+            sm.v = Vector3{ 0, 0.3f, 0 }; sm.rot = frand(0, 360); sm.tex = irand(3);
+            smokes.push_back(sm);
+        }
+        if (d.fire && !flying && d.t < 4 && frand(0, 1) < dt * 12) firePuffs.push_back({ d.p, Vector3{ 0, 0.8f, 0 }, 0, 0.4f, d.size * 3, frand(0, 360), 0, false });
+        if (d.t > d.life) debris.erase(debris.begin() + i);
+    }
+    for (int i = (int)shocks.size() - 1; i >= 0; i--) { shocks[i].t += dt; if (shocks[i].t > shocks[i].life) shocks.erase(shocks.begin() + i); }
+    // la luz de la explosión parpadea mientras se apaga
+    boomLightI = std::max(0.0f, boomLightI - dt * boomLightDecay);
+    if (boomLightI <= 0) boomLightDecay = 90;
 }
 
 void DrawUnlitBegin(float intensity);
@@ -755,12 +1118,37 @@ void DrawEffects() {
     DrawUnlitBegin(0.1f);   // la sangre, oscura (las marcas no reciben luz)
     for (auto &d : decals) if (d.type == 1) DrawDecalQuad(d, texBlood, WHITE);
     DrawUnlitEnd();
-    // humo
-    DrawUnlitBegin(0.25f);
-    for (auto &s : smokes) {
-        if (s.t < 0) continue;
+    InitFxTextures();
+    auto rotBill = [](Texture2D t, Vector3 p, float size, float rotDeg, Color c) {
+        DrawBillboardPro(cam, t, Rectangle{ 0, 0, (float)t.width, (float)t.height }, p, Vector3{ 0, 1, 0 }, Vector2{ size, size }, Vector2{ size / 2, size / 2 }, rotDeg, c);
+    };
+    // onda expansiva: un anillo que corre por el suelo
+    rlSetBlendMode(BLEND_ADDITIVE);
+    DrawUnlitBegin(2.0f);
+    for (auto &s : shocks) {
+        float k = s.t / s.life, r = s.size * (0.15f + 0.85f * sqrtf(k));
+        Decal d{ 3, s.p, Vector3{ 0, 1, 0 }, r * 2, 0 };
+        DrawDecalQuad(d, texRing, Color{ 255, 190, 120, (unsigned char)(200 * (1 - k)) });
+    }
+    DrawUnlitEnd();
+    rlSetBlendMode(BLEND_ALPHA);
+    // humo, de atrás hacia adelante
+    static std::vector<std::pair<float, int>> order;
+    order.clear();
+    for (int i = 0; i < (int)smokes.size(); i++) if (smokes[i].t >= 0) order.push_back({ -Vector3DistanceSqr(smokes[i].p, cam.position), i });
+    std::sort(order.begin(), order.end());
+    DrawUnlitBegin(0.55f + std::min(boomLightI, 40.0f) * 0.012f);   // la luz del lugar y el fuego iluminan el humo
+    for (auto &o : order) {
+        const Smoke &s = smokes[o.second];
         float k = s.t / s.life;
-        DrawBillboard(cam, texSmoke, s.p, s.size * (0.3f + k * 1.4f), Color{ 120, 115, 110, (unsigned char)(200 * (1 - k)) });
+        float fadeIn = clampf(s.t / 0.25f, 0, 1);
+        float a = fadeIn * powf(1 - k, 1.3f) * (s.dark ? 235 : 170);
+        Color c = s.dark ? Color{ 92, 86, 80, (unsigned char)a } : Color{ 168, 158, 144, (unsigned char)a };
+        if (s.heat > 0 && s.t < 1.2f) {   // recién salido del fuego: rojizo
+            float h = s.heat * (1 - s.t / 1.2f);
+            c.r = (unsigned char)lerpf(c.r, 255, h * 0.7f); c.g = (unsigned char)lerpf(c.g, 110, h * 0.6f); c.b = (unsigned char)lerpf(c.b, 40, h * 0.5f);
+        }
+        rotBill(texPuff[s.tex], s.p, s.size * (0.55f + sqrtf(k) * 1.7f), s.rot, c);
     }
     DrawUnlitEnd();
     // sangre y polvo
@@ -769,13 +1157,51 @@ void DrawEffects() {
     DrawUnlitEnd();
     // chispas, fuego y trazadoras (brillan)
     rlSetBlendMode(BLEND_ADDITIVE);
-    DrawUnlitBegin(6.0f);
-    for (auto &p : particles) if (p.additive) DrawBillboard(cam, texFlash, p.p, p.size * 2.0f, Color{ p.c.r, p.c.g, p.c.b, (unsigned char)(255 * clampf(p.life / p.max, 0, 1)) });
-    for (auto &b : booms) {
-        float k = b.t / 0.45f;
-        DrawBillboard(cam, texFlash, b.p, (1.5f + k * 7.0f) * b.size, Color{ 255, 150, 60, (unsigned char)(255 * (1 - k)) });
-        DrawBillboard(cam, texFlash, b.p, (0.8f + k * 3.0f) * b.size, Color{ 255, 240, 200, (unsigned char)(255 * (1 - k)) });
+    DrawUnlitBegin(3.2f);
+    for (auto &f : firePuffs) {   // bola de fuego: blanco amarillento -> naranja -> rojo oscuro
+        if (f.t < 0) continue;
+        float k = f.t / f.life;
+        Color c = k < 0.25f ? ColorLerp(Color{ 255, 245, 210, 255 }, Color{ 255, 160, 50, 255 }, k / 0.25f)
+                            : ColorLerp(Color{ 255, 160, 50, 255 }, Color{ 140, 30, 5, 255 }, (k - 0.25f) / 0.75f);
+        float a = clampf(f.t / 0.06f, 0, 1) * (1 - k * k);
+        c.r = (unsigned char)(c.r * a); c.g = (unsigned char)(c.g * a); c.b = (unsigned char)(c.b * a); c.a = (unsigned char)(255 * a);
+        rotBill(texFire, f.p, f.size * (0.6f + 0.9f * sqrtf(k)), f.rot, c);
     }
+    for (auto &p : particles) if (p.flame) {   // chorro del lanzallamas: crece y se enrojece
+        float k = 1 - p.life / p.max;
+        Color c = ColorLerp(Color{ 255, 220, 140, 255 }, Color{ 200, 50, 10, 255 }, k);
+        float a = (1 - k) * 0.75f * std::min(1.0f, k * 5);   // se enciende a unos centímetros de la boca y se abre al alejarse
+        rotBill(texFire, p.p, 0.15f + k * 1.7f, p.life * 400, Color{ (unsigned char)(c.r * a), (unsigned char)(c.g * a), (unsigned char)(c.b * a), (unsigned char)(255 * a) });
+    }
+    DrawUnlitEnd();
+    DrawUnlitBegin(6.0f);
+    for (auto &p : particles) if (p.additive && !p.flame && !p.spark) DrawBillboard(cam, texFlash, p.p, p.size * 2.0f, Color{ p.c.r, p.c.g, p.c.b, (unsigned char)(255 * clampf(p.life / p.max, 0, 1)) });
+    // chispas: rayitas estiradas en la dirección en que vuelan
+    rlSetTexture(texFlash.id);
+    rlBegin(RL_QUADS);
+    for (auto &p : particles) if (p.spark) {
+        Vector3 tail = Vector3Subtract(p.p, Vector3Scale(p.v, 0.035f));
+        Vector3 dir = Vector3Subtract(p.p, tail), view = Vector3Subtract(p.p, cam.position);
+        Vector3 side = Vector3CrossProduct(dir, view);
+        float sl = Vector3Length(side);
+        if (sl < 1e-5f) continue;
+        side = Vector3Scale(side, p.size / sl);
+        unsigned char a = (unsigned char)(255 * clampf(p.life / p.max * 1.5f, 0, 1));
+        rlColor4ub(p.c.r, p.c.g, p.c.b, a);
+        rlTexCoord2f(0, 0.5f); rlVertex3f(tail.x - side.x, tail.y - side.y, tail.z - side.z);
+        rlTexCoord2f(1, 0.5f); rlVertex3f(tail.x + side.x, tail.y + side.y, tail.z + side.z);
+        rlTexCoord2f(1, 0.5f); rlVertex3f(p.p.x + side.x, p.p.y + side.y, p.p.z + side.z);
+        rlTexCoord2f(0, 0.5f); rlVertex3f(p.p.x - side.x, p.p.y - side.y, p.p.z - side.z);
+    }
+    rlEnd();
+    rlSetTexture(0);
+    for (auto &b : booms) {   // destello inicial
+        float k = b.t / 0.3f;
+        DrawBillboard(cam, texFlash, b.p, (2.0f + k * 6.0f) * b.size, Color{ 255, 170, 80, (unsigned char)(255 * (1 - k)) });
+        DrawBillboard(cam, texFlash, b.p, (1.2f + k * 2.0f) * b.size, Color{ 255, 250, 230, (unsigned char)(255 * (1 - k) * (1 - k)) });
+    }
+    for (auto &pr : projectiles) if (pr.stuck && fmodf(pr.fuse, 0.1f + pr.fuse * 0.25f) < 0.06f)   // la flecha pita en rojo
+        DrawBillboard(cam, texFlash, pr.p, 0.35f, Color{ 255, 40, 30, 255 });
     for (auto &pr : projectiles) if (pr.rocket) {
         Vector3 back = Vector3Subtract(pr.p, Vector3Scale(Vector3Normalize(pr.v), 0.2f));
         DrawBillboard(cam, texFlash, back, frand(0.4f, 0.6f), Color{ 255, 180, 90, 255 });

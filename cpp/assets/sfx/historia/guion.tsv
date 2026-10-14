@@ -1,0 +1,267 @@
+h1_c1	narr	none	Hace tres días, el Búnker 7 dejó de responder.
+h1_c2	narr	none	Ahí trabajaba la doctora Elena Vidal, a cargo del Proyecto Lázaro.
+h1_c3	narr	none	Me mandaron con el cabo Milton. <break time="150ms"/> Entrar, recuperar su investigación y salir con vida.
+h1_i1	frank	radio	Base, aquí Frank. Milton y yo estamos en la entrada del Búnker 7.
+h1_i2	reyes	radio	Recibido. Los diarios de Vidal son la prioridad.
+h1_i3	milton	none	Frank... <break time="150ms"/> algo se mueve ahí dentro.
+h1_i4	reyes	radio	Entonces no dejen que los alcance. <break time="100ms"/> Cambio.
+h1_s1	reyes	radio	Los están rodeando. Resistan la primera oleada y tapen las ventanas.
+h1_s1m	milton	none	Bueno... <break time="150ms"/> eso fue un saludo bastante cálido.
+h1_s1f	frank	none	No te confíes. Vienen más.
+h1_s2a	reyes	radio	Los archivos de Vidal están bajo llave electrónica. Busquen el interruptor de la corriente.
+h1_s2b	frank	radio	Corriente activada. Las puertas del archivo están abiertas.
+h1_s3	reyes	radio	Vidal dejó tres diarios en el búnker. Encuéntrenlos todos.
+h1_d1	vidal_tape	tape	Diario de Elena Vidal, día doce. <break time="200ms"/> El suero Lázaro reactivó tejido muerto. Los sujetos abrieron los ojos.
+h1_d2	vidal_tape	tape	Día diecinueve. <break time="200ms"/> Ya no reconocen a nadie. No duermen. Solo tienen hambre.
+h1_d3	vidal_tape	tape	Día veinte. <break time="200ms"/> El coronel Reyes ordenó llevar el suero a la fábrica. Quiere producirlo en masa. <break time="200ms"/> Que Dios nos perdone.
+h1_d3m	milton	none	¿Reyes? <break time="100ms"/> ¿Nuestro coronel Reyes?
+h1_d3f	frank	none	Ni una palabra por radio, Milton.
+h1_s4a	frank	radio	Coronel... <break time="150ms"/> ¿usted sabía lo del suero?
+h1_s4b	reyes	radio	Eso no les concierne. El helicóptero llega en noventa segundos. Aguanten.
+h1_s4c	reyes	radio	Extracción en posición. Suban.
+h1_rC	milton	none	Este lugar me da escalofríos.
+h1_rE	frank	none	Un laboratorio. Aquí empezó todo.
+h1_x1	milton	none	¿Te conté del perro que tenía? Ladraba menos que estos.
+h1_x1f	frank	none	Concéntrate, Milton.
+h1_x2	milton	none	Cuando volvamos, me tomo un mes de vacaciones.
+h1_x2f	frank	none	Eso dijiste la última vez.
+h2_c1	narr	none	El suero salió del búnker en camiones, rumbo a la vieja fábrica.
+h2_c2	narr	none	Reyes nos dio una sola orden: <break time="150ms"/> volarla en pedazos.
+h2_c3	narr	none	No nos dijo por qué. Tampoco se lo preguntamos... <break time="200ms"/> todavía.
+h2_i1	frank	radio	Base, aquí Frank. Llegamos a la fábrica.
+h2_i2	reyes	radio	Coloquen las cargas y salgan de ahí. Sin preguntas.
+h2_i3	milton	none	¿Qué hay en esos tanques, coronel?
+h2_i4	reyes	radio	Nada que deban ver. <break time="100ms"/> Cambio y fuera.
+h2_s1	reyes	radio	Los detectaron. Defiendan su posición.
+h2_s2	reyes	radio	Sin corriente no van a poder armar las cargas. Busquen el interruptor.
+h2_s3	reyes	radio	Coloquen tres cargas en los tanques de suero. Mantengan pulsado para armarlas.
+h2_v1	vidal	radio	Sargento... <break time="150ms"/> ¿me escucha? Soy Elena Vidal. No confíe en Reyes.
+h2_v2	vidal	radio	Él sabía todo desde el principio. Busquen el hospital San Rafael. Ahí están las pruebas.
+h2_vm	milton	none	¿Esa era la doctora? ¿No estaba muerta?
+h2_vf	frank	none	Eso nos dijeron.
+h2_s4a	reyes	radio	Cargas armadas. Detonación en sesenta segundos. No se queden a mirar.
+h2_s4b	frank	radio	Coronel, Vidal está viva.
+h2_s4c	reyes	radio	Vidal murió en el búnker, sargento. <break time="150ms"/> Olvide esa frecuencia.
+h2_s4d	milton	none	Frank... <break time="150ms"/> si Reyes miente, ¿para quién trabajamos?
+h2_s4e	frank	none	Desde hoy, para nosotros.
+h2_rB	frank	none	Ahí está el tablero de la corriente.
+h2_rE	milton	none	Mira esos tanques. Hay cosas flotando adentro.
+h2_x1	milton	none	¿Sabías que esta fábrica hacía galletas antes?
+h2_x1f	frank	none	Ahora hace monstruos.
+h2_x2	milton	none	Si sobrevivimos a esto, pido un aumento.
+h2_x2f	frank	none	Pide dos.
+c2o_m1	milton	none	¡Eso sí fue un fuego artificial!
+c2o_f1	frank	none	Reyes nos quería lejos de las pruebas.
+c2o_m2	milton	none	¿Y ahora qué?
+c2o_f2	frank	none	Ahora vamos al hospital San Rafael.
+h3_c1	narr	none	Vidal nos dio un nombre: <break time="100ms"/> San Rafael, el hospital de San Roque.
+h3_c2	narr	none	Ahí trataron a los primeros pacientes del Proyecto Lázaro.
+h3_c3	narr	none	Reyes nos ordenó volver a la base. <break time="200ms"/> No volvimos.
+h3_i1	milton	none	Hospital San Rafael. Qué nombre tan alegre.
+h3_i2	frank	none	Vidal dijo que las pruebas están en el archivo.
+h3_i3	milton	none	¿Y si es una trampa?
+h3_i4	frank	none	Entonces nos vamos a enterar rápido.
+h3_s1	frank	none	Sin corriente no hay archivo. Busquemos el interruptor.
+h3_s1m	milton	none	Luz. Ahora veo lo feo que está todo.
+h3_s2	frank	none	Las fichas de los pacientes tienen que estar repartidas por el hospital.
+h3_f1	frank	none	Paciente uno: soldado Ramírez. Voluntario... <break time="150ms"/> según Reyes.
+h3_f2	frank	none	Paciente dos: soldado Ortiz. Firmado por el coronel Reyes.
+h3_f3	milton	none	Frank... <break time="150ms"/> estos eran de nuestro batallón.
+h3_f3b	frank	none	Reyes usó a sus propios hombres.
+h3_s3	milton	none	La computadora del quirófano pide una tarjeta. El director la tenía... <break time="150ms"/> y el director está en la morgue.
+h3_k1	frank	none	La tarjeta. El doctor no la va a extrañar.
+h3_s4	frank	none	Voy a subir los archivos a la red. Que todo el mundo vea lo que hizo Reyes.
+h3_s4b	milton	none	Yo cubro la puerta. ¡Rápido!
+h3_s4c	reyes	radio	Frank. Detén esa transmisión ahora mismo. Es una orden.
+h3_s4d	frank	radio	Demasiado tarde, coronel.
+h3_rC	milton	none	Camas vacías. Odio las camas vacías.
+h3_rE	milton	none	La morgue. Claro. ¿Dónde más íbamos a terminar?
+h3_x1	milton	none	Mi abuela decía que los hospitales de noche están embrujados.
+h3_x1f	frank	none	Tu abuela tenía razón.
+h3_x2	milton	none	Frank, ¿alguna vez pensaste en hacer otra cosa? Panadero, por ejemplo.
+h3_x2f	frank	none	Todos los días.
+c3o_r1	reyes	radio	Muy bien, sargento. Ahora todo el mundo lo sabe.
+c3o_r2	reyes	radio	Pero nadie le va a creer a dos desertores muertos.
+c3o_r3	reyes	radio	Desde este momento, <break time="150ms"/> ustedes no existen.
+c3o_m1	milton	none	¿Nos acaba de despedir?
+c3o_v1	vidal	radio	Sargento, vi su transmisión. Estoy en San Roque, en la iglesia. Vengan antes del amanecer.
+c3o_f1	frank	none	Vamos, Milton. Tenemos una cita.
+h4_c1	narr	none	Reyes nos borró del mapa. Para el ejército, estábamos muertos.
+h4_c2	narr	none	Vidal nos esperaba en la iglesia de San Roque, el pueblo donde todo empezó.
+h4_c3	narr	none	Por primera vez en días, alguien nos estaba esperando.
+h4_i1	frank	radio	Aquí Frank. <break time="150ms"/> Ya nadie nos escucha.
+h4_i2	milton	none	Yo te escucho. Lamentablemente.
+h4_i3	frank	none	La iglesia queda al este de la plaza.
+h4_i4	milton	none	Tumbas abiertas. Justo lo que quería ver.
+h4_s1	frank	none	Vamos a la iglesia. Vidal nos espera.
+c4a_m1	milton	none	¿Doctora? ¿Hola? Venimos en son de paz... <break time="150ms"/> más o menos.
+c4a_v1	vidal	radio	¡Sargento! Estoy en el campanario. No puedo bajar, la escalera está llena de ellos.
+c4a_f1	frank	none	¿Está herida?
+c4a_v2	vidal	radio	Estoy bien. Escuchen: escondí tres muestras de la cura en el pueblo. En el cementerio, en la casa y en la estación.
+c4a_f2	frank	none	¿Una cura? ¿Funciona?
+c4a_v3	vidal	radio	A medias. La fórmula completa está en el laboratorio de Reyes, debajo de su base.
+c4a_m2	milton	none	Primero las muestras. Después le arruinamos el día a Reyes.
+h4_m1	frank	none	Tengo una. Faltan dos.
+h4_m2	frank	none	Otra más. Queda una.
+h4_m3	frank	none	Las tres muestras. Vidal, las tenemos.
+h4_s3	vidal	radio	Perfecto. Ahora necesito corriente para la radio de la estación. El interruptor está en el taller.
+h4_s4a	vidal	radio	Aguanten hasta el amanecer. Con la luz se calman.
+h4_s4b	milton	none	¿Se calman? ¿Eso está comprobado?
+h4_s4c	vidal	radio	Más o menos.
+h4_s4d	milton	none	Frank, cuando esto termine, me debes una cerveza.
+h4_s4e	frank	none	Te debo varias.
+h4_rD	milton	none	Odio los cementerios. Y parece que ellos también me odian.
+h4_rG	frank	none	El taller. El interruptor debería estar por aquí.
+h4_x1	milton	none	¿Te imaginas vivir en un pueblo así? Tranquilo, con plaza...
+h4_x1f	frank	none	Sin zombis, tal vez.
+h4_x2	milton	none	Frank, si me convierto, prométeme que no me dejas así.
+h4_x2f	frank	none	No digas tonterías.
+c4b_m0	milton	none	Amanece. <break time="150ms"/> Lo logramos, Frank.
+c4b_m1	milton	none	¡Frank, detrás de ti!
+c4b_m2	milton	none	Ah... <break time="300ms"/> me mordió.
+c4b_f1	frank	none	No. No, no, no. <break time="150ms"/> Milton, mírame.
+c4b_v1	vidal	radio	Sargento, todavía hay tiempo. La cura completa está en el laboratorio de Reyes.
+c4b_m3	milton	none	Entonces... <break time="200ms"/> vamos a buscar a Reyes.
+c4b_f2	frank	none	Vamos por Reyes.
+h5_c1	narr	none	La mordida avanzaba. Vidal le dio a Milton lo poco que tenía: <break time="100ms"/> una dosis para ganar tiempo.
+h5_c2	narr	none	La fórmula completa estaba bajo el Fuerte Reyes, en un laboratorio que no figuraba en ningún mapa.
+h5_c3	narr	none	Íbamos a entrar por la puerta principal.
+h5_i1	frank	none	Fuerte Reyes. Ni un guardia en la entrada.
+h5_i2	milton	none	Tal vez se tomaron el día libre.
+h5_i3	vidal	radio	Necesitan los tres códigos de acceso. Están en las terminales de la base.
+h5_i4	frank	none	Entendido. Milton, conmigo.
+h5_s1	milton	none	Ahí están los guardias... <break time="150ms"/> o lo que queda de ellos.
+h5_s2	vidal	radio	Las terminales no tienen corriente. Busquen la sala de radio.
+h5_s3	vidal	radio	Ahora las terminales. Mantengan pulsado para copiar cada código.
+h5_t1	vidal	radio	Primer código. Bien hecho.
+h5_t2	vidal	radio	Segundo código. Falta uno.
+h5_t3	vidal	radio	¡Los tengo! Esperen... <break time="150ms"/> alguien tomó los altavoces.
+c5a_r1	reyes_pa	pa	Sargento Frank. Cabo Milton. <break time="150ms"/> Bienvenidos a mi casa.
+c5a_r2	reyes_pa	pa	¿Saben lo que es enterrar a cien soldados? Yo sí. Lázaro iba a terminar con eso.
+c5a_r3	reyes_pa	pa	Un ejército que no muere. Que no duda. Que no deserta... <break time="200ms"/> como ustedes.
+c5a_r4	reyes_pa	pa	El laboratorio está abajo. Bajen, si se atreven. <break time="150ms"/> Lázaro los espera.
+c5a_m1	milton	none	¿Este tipo ensaya sus discursos?
+c5a_f1	frank	none	Allá vamos, coronel.
+h5_s4	vidal	radio	La entrada al laboratorio está en el despacho de Reyes.
+h5_s4d	milton	none	Bonito despacho. Lástima el dueño.
+h5_s5a	vidal	radio	Estoy forzando el ascensor desde aquí. Denme un minuto y medio.
+h5_s5b	milton	none	Frank... <break time="200ms"/> me siento raro. Hace frío.
+h5_s5c	frank	none	Aguanta. Ya casi, Milton.
+h5_s5d	vidal	radio	¡Ascensor abierto! ¡Bajen ya!
+h5_rC	frank	none	La armería. Agarra todo lo que puedas.
+h5_rD	milton	none	Mira ese camión. Podríamos irnos ahora mismo...
+h5_x1	milton	none	Frank, si no salgo de esta... <break time="150ms"/> dile a mi madre que fui valiente.
+h5_x1f	frank	none	Se lo vas a decir tú.
+h5_x2	milton	none	La dosis de Vidal sabe a metal. Y a arrepentimiento.
+h6_c1	narr	none	Bajamos al nivel menos tres. El ascensor tardó una eternidad.
+h6_c2	narr	none	Milton ya no bromeaba.
+h6_c3	narr	none	Al fondo, en el núcleo, algo nos esperaba desde hacía mucho tiempo.
+h6_i1	vidal	radio	Están en el laboratorio. Los componentes de la cura están en criogenia, en control y en síntesis.
+h6_i2	frank	none	¿Y Reyes?
+h6_i3	vidal	radio	No lo sé. Pero el núcleo tiene energía... <break time="150ms"/> y no debería.
+h6_i4	milton	none	Energía donde no debería. Mi parte favorita.
+h6_s1	vidal	radio	Primero la corriente. Está en la sala de control.
+h6_s2	vidal	radio	Ahora los componentes. Tráiganlos todos.
+h6_p1	frank	none	Componente uno.
+h6_p2	frank	none	Dos.
+h6_p3	milton	none	El último. Vámonos de aquí... <break time="150ms"/> por favor.
+h6_s3	vidal	radio	Lleven los componentes al sintetizador del núcleo.
+c6a_r1	reyes	radio	Lo siento, sargento. No puedo dejar que destruyan mi trabajo.
+c6a_r2	reyes	radio	Lázaro... <break time="300ms"/> despierta.
+c6a_m1	milton	none	Dime que eso no es lo que creo.
+c6a_f1	frank	none	Dispárale a la cabeza.
+h6_b1	reyes	radio	Mírenlo. Perfecto. Mi primer soldado.
+h6_b2	milton	none	¡Está perdiendo fuerza! ¡Sigue!
+h6_b3	frank	none	Descansa, soldado.
+h6_s5a	vidal	radio	Sintetizando la cura. Sesenta segundos. No dejen que se acerquen al tanque.
+h6_s5b	reyes	radio	¡No! ¡Aléjense de mí! ¡Soy su creador!
+h6_s5c	vidal	radio	Reyes... <break time="200ms"/> sus criaturas lo encontraron.
+h6_rC	milton	none	Cápsulas rotas desde adentro. Genial.
+h6_rE	frank	none	El núcleo. Ahí está el sintetizador.
+h6_x1	milton	none	Frank... <break time="150ms"/> gracias por no dejarme atrás.
+h6_x1f	frank	none	Nunca.
+c6b_v1	vidal	radio	La cura está lista. Inyéctela, sargento. Ahora.
+c6b_m1	milton	none	¿Ya está? ¿Ya no me voy a convertir?
+c6b_v2	vidal	radio	Ya no. <break time="150ms"/> Lo lograron.
+c6b_m2	milton	none	Entonces... <break time="200ms"/> ahora sí. Me debes una cerveza.
+c6b_f1	frank	none	Te debo varias. Vámonos a casa.
+c6b_m3	milton	none	Y esta vez manejo yo.
+h6_e1	narr	none	Milton se recuperó en tres semanas. Todavía se queja de la cicatriz.
+h6_e2	narr	none	Vidal entregó la fórmula a un laboratorio que Reyes no controlaba.
+h6_e3	narr	none	Del coronel Reyes solo encontraron su radio, <break time="100ms"/> todavía encendida.
+h6_e4	narr	none	Pero algunas noches, cuando apago la luz, la escucho...
+h6_e5	narr	none	...y alguien sigue contando rondas.
+g_down1	frank	none	¡Milton! ¡Aguanta, voy por ti!
+g_down2	frank	none	¡Milton, no te me mueras!
+voz_hospital1	frank	radio	Base, aquí Frank. Entramos al hospital.
+voz_hospital2	frank	radio	Huele a desinfectante... <break time="150ms"/> y a muerte.
+voz_hospital3	frank	radio	Las camillas están vacías. Los pacientes no.
+voz_hospital4	frank	radio	Tapen las ventanas. Ya vienen.
+voz_base1	frank	radio	Base, aquí Frank. Estoy dentro del fuerte.
+voz_base2	frank	radio	No hay guardias. Ni uno solo.
+voz_base3	frank	radio	Las puertas del hangar están abiertas.
+voz_base4	frank	radio	Esto era una base... <break time="150ms"/> ahora es un nido.
+voz_laboratorio1	frank	radio	Base, aquí Frank. Bajamos al laboratorio.
+voz_laboratorio2	frank	radio	Las cápsulas están rotas desde adentro.
+voz_laboratorio3	frank	radio	Algo grande se mueve en el núcleo.
+voz_laboratorio4	frank	radio	Si no volvemos... <break time="150ms"/> ya saben por qué.
+o1_m1	milton	none	¿Tú también escuchaste eso, o ya me volví loco?
+o1_f1	frank	none	Las dos cosas pueden ser ciertas.
+o1_m2	milton	none	Muy gracioso. <break time="150ms"/> Tú primero.
+o1_f2	frank	none	Como siempre. Mantente cerca.
+o2_f1	frank	none	Reyes quiere esto rápido y en silencio.
+o2_m1	milton	none	Rápido sí. En silencio... <break time="150ms"/> con estos vecinos, lo dudo.
+o2_f2	frank	none	Tres cargas y nos vamos.
+o2_m2	milton	none	Tres cargas. Entendido. <break time="150ms"/> Odio las fábricas.
+o3_m1	milton	none	Frank, ¿estamos seguros de esto? Desobedecer a Reyes...
+o3_f1	frank	none	Reyes nos mintió. Quiero saber cuánto.
+o3_m2	milton	none	Bueno. Si nos fusilan, que sea por algo interesante.
+o3_f2	frank	none	Nadie nos va a fusilar.
+o3_m3	milton	none	Lo anoto.
+o4_m1	milton	none	San Roque. Mi abuela tenía una casa por acá.
+o4_f1	frank	none	¿En serio?
+o4_m2	milton	none	No. <break time="150ms"/> Pero quería romper el silencio.
+o4_f2	frank	none	Vamos. La iglesia nos espera.
+o5_f1	frank	none	¿Cómo te sientes?
+o5_m1	milton	none	Como si me hubiera mordido un zombi. <break time="200ms"/> Ah, espera.
+o5_f2	frank	none	Milton.
+o5_m2	milton	none	Estoy bien. Vamos por Reyes antes de que cambie de opinión.
+o6_m1	milton	none	Frank. <break time="150ms"/> Si me pasa algo ahí abajo...
+o6_f1	frank	none	No te va a pasar nada.
+o6_m2	milton	none	Si me pasa algo... <break time="150ms"/> no dejes que Reyes gane.
+o6_f2	frank	none	Te lo prometo.
+j1m	milton	none	¿Sabes por qué los zombis no comen payasos? <break time="200ms"/> Porque saben raro.
+j1f	frank	none	Ese chiste es malísimo.
+j2m	milton	none	Frank, si un zombi me muerde los pies, ¿me da pie de atleta?
+j2f	frank	none	Concéntrate.
+j3m	milton	none	Cuando todo esto termine, abro una pizzería. Se va a llamar Última Ronda.
+j3f	frank	none	Yo invierto.
+j4m	milton	none	¿Te diste cuenta de que nunca piden permiso? Ni un "disculpe, voy a comerlo".
+j4f	frank	none	Mal educados.
+j5m	milton	none	Mi mamá quería que fuera dentista.
+j5f	frank	none	Y aquí estás, arreglando dentaduras a balazos.
+j6m	milton	none	Una vez la caja misteriosa me dio un osito. Desde entonces los busco por todos lados.
+j6f	frank	none	¿Y encontraste alguno?
+j7m	milton	none	Dicen que en cada lugar hay tres ositos escondidos. Si juntas los tres, pasa algo bonito.
+j7f	frank	none	¿Bonito cómo?
+j8m	milton	none	Las radios viejas a veces todavía tienen grabaciones. Si ves una con la luz verde, escúchala.
+j8f	frank	none	Lo tendré en cuenta.
+j9m	milton	none	¿Cuántos llevas? Yo perdí la cuenta en el cuarenta.
+j9f	frank	none	Yo no cuento. Disparo.
+j10m	milton	none	Si me convierto en zombi, quiero ser de los rápidos.
+j10f	frank	none	Serías de los que hablan.
+j11m	milton	none	Frank, ¿alguna vez te dijeron que eres muy serio?
+j11f	frank	none	Todos los días.
+j12m	milton	none	Escribí CABEZÓN en el teclado de una terminal y pasó algo rarísimo.
+j12f	frank	none	¿Qué pasó?
+egg_osito	milton	none	¿Un osito? <break time="150ms"/> ¡Es igualito al de la caja!
+egg_ositos3	milton	none	¡Los tres ositos! <break time="150ms"/> Esto merece un uniforme nuevo.
+egg_cab_f	frank	none	¿Por qué tienen la cabeza tan grande?
+egg_cab_m	milton	none	Comen bien.
+rad_bunker	vidal_tape	tape	Diario de Elena Vidal, día uno. <break time="200ms"/> El coronel Reyes nos dio todo lo que pedimos. Dice que es por su hijo.
+rad_fabrica	obrero	tape	Turno de noche, planta tres. <break time="200ms"/> Los tanques golpean desde adentro. Nadie nos dijo qué estamos fabricando.
+rad_pueblo	cura	tape	Padre Ignacio, parroquia de San Roque. <break time="200ms"/> Enterramos a doce esta semana. Ninguno se quedó en su tumba.
+rad_hospital	enfermera	tape	Enfermera de guardia, pabellón seis. <break time="200ms"/> El paciente Ramírez dejó de respirar a las tres. A las tres y diez, abrió los ojos.
+rad_base	reyes_tape	tape	Registro personal. <break time="200ms"/> Tomás empeoró. Los médicos dicen que no pasa del invierno. Lázaro tiene que funcionar.
+rad_laboratorio	tomas	tape	Me llamo Tomás Reyes. <break time="200ms"/> Papá dice que la inyección me va a curar. <break time="200ms"/> Tengo frío.
+rad_final	vidal_tape	tape	Si alguien encontró todas mis grabaciones, ya sabe la verdad. <break time="200ms"/> Lázaro era Tomás, el hijo del coronel. Reyes no quería un ejército. <break time="300ms"/> Quería a su hijo de vuelta.

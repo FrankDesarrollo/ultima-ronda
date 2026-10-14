@@ -238,6 +238,9 @@ void DrawHUD() {
     std::string gr = "GRANADAS ";
     for (int i = 0; i < player.grenades; i++) gr += "o ";
     Text(fontUI, gr.c_str(), W - 40 * s, Hh - 62 * s, 19 * s, Color{ 159, 220, 143, 255 }, 1);
+    DrawAllyHUD();
+    DrawDialogHUD();
+    DrawStoryHUD();
 }
 
 // ---------- Botones ----------
@@ -292,7 +295,7 @@ void DrawOptions() {
     float s = S();
     int W = GetScreenWidth(), Hh = GetScreenHeight();
     Overlay();
-    float pw = 680 * s, ph = 600 * s, px = W / 2 - pw / 2, py = Hh / 2 - ph / 2;
+    float pw = 680 * s, ph = (EggRosaUnlocked() ? 708 : 654) * s, px = W / 2 - pw / 2, py = Hh / 2 - ph / 2;
     DrawRectangleRounded(Rectangle{ px, py, pw, ph }, 0.05f, 8, Color{ 18, 10, 10, 235 });
     DrawRectangleRoundedLinesEx(Rectangle{ px, py, pw, ph }, 0.05f, 8, 2, Color{ 200, 40, 40, 255 });
     Text(fontUI, "OPCIONES", W / 2.0f, py + 22 * s, 46 * s, WHITE, 0.5f, 3);
@@ -310,6 +313,8 @@ void DrawOptions() {
     opts.fov = roundf(Slider(4, x, y, w, "Campo de visión", opts.fov, 60, 100, b)); y += gap;
     lowQuality = Toggle(x, y, w, "Gráficos rápidos (para PCs lentas)", lowQuality); y += gap;
     opts.showFps = Toggle(x, y, w, "Mostrar FPS", opts.showFps); y += gap;
+    opts.ally = Toggle(x, y, w, "Compañero bot (Milton) en supervivencia", opts.ally); y += gap;
+    if (EggRosaUnlocked()) { opts.allyRosa = Toggle(x, y, w, "Uniforme rosa de Milton (secreto)", opts.allyRosa); y += gap; }
     Button(Rectangle{ W / 2 - 140 * s, py + ph - 84 * s, 280 * s, 60 * s }, "VOLVER", nullptr, 6);
 }
 
@@ -339,9 +344,10 @@ static void DrawLobby() {
         Text(fontUI, "Quien crea la partida tiene que abrir el puerto UDP 27015 en su router (reenvío de puertos).", W / 2.0f, y + 170 * s, 19 * s, grey, 0.5f, 1);
     } else if (lb == LB_HOST_PICK) {
         Text(fontUI, "Elige el mapa", W / 2.0f, y, 28 * s, WHITE, 0.5f, 2);
-        const char *names[3] = { "BÚNKER", "FÁBRICA", "PUEBLO" }, *subs[3] = { "Pasillos estrechos", "Mapa grande", "Al aire libre" };
+        const char *names[6] = { "BÚNKER", "FÁBRICA", "PUEBLO", "HOSPITAL", "FUERTE REYES", "LABORATORIO" }, *subs[6] = { "Pasillos estrechos", "Mapa grande", "Al aire libre", "San Rafael", "Base militar", "Bajo tierra" };
+        const int ids[6] = { 22, 23, 24, 27, 28, 29 };
         float mw = 260 * s, x0 = W / 2 - mw * 1.5f - gap;
-        for (int i = 0; i < 3; i++) Button(Rectangle{ x0 + i * (mw + gap), y + 50 * s, mw, bh }, names[i], subs[i], 22 + i);
+        for (int i = 0; i < 6; i++) Button(Rectangle{ x0 + (i % 3) * (mw + gap), y + 50 * s + (i / 3) * (bh + gap), mw, bh }, names[i], subs[i], ids[i]);
     } else if (lb == LB_HOSTING) {
         std::string pub = NetPublicIP(), loc = NetLocalIP();
         Text(fontUI, NetStatus().c_str(), W / 2.0f, y, 30 * s, gold, 0.5f, 2);
@@ -363,8 +369,45 @@ static void DrawLobby() {
         }
         if (!NetStatus().empty()) Text(fontUI, NetStatus().c_str(), W / 2.0f, y + 220 * s, 22 * s, lb == LB_CONNECTING ? gold : Color{ 255, 120, 100, 255 }, 0.5f, 1);
     }
-    if (lb == LB_HOST_PICK && !NetStatus().empty()) Text(fontUI, NetStatus().c_str(), W / 2.0f, y + 170 * s, 22 * s, Color{ 255, 120, 100, 255 }, 0.5f, 1);
+    if (lb == LB_HOST_PICK && !NetStatus().empty()) Text(fontUI, NetStatus().c_str(), W / 2.0f, y + 290 * s, 22 * s, Color{ 255, 120, 100, 255 }, 0.5f, 1);
     Button(Rectangle{ W / 2 - 130 * s, Hh * 0.8f, 260 * s, 52 * s }, lb == LB_HOSTING || lb == LB_CONNECTING ? "CANCELAR" : "VOLVER", nullptr, 26);
+}
+
+// ---------- Modo historia: elegir capítulo ----------
+bool storyMenuOpen = false;
+static void DrawStoryMenu() {
+    float s = S();
+    int W = GetScreenWidth(), Hh = GetScreenHeight();
+    Overlay();
+    const char *title = "MODO HISTORIA";
+    float ts = 104 * s;
+    Vector2 tm = MeasureTextEx(fontTitle, title, ts, 4);
+    DrawTextEx(fontTitle, title, Vector2{ W / 2 - tm.x / 2 + 4, Hh * 0.1f + 4 }, ts, 4, Color{ 0, 0, 0, 220 });
+    DrawTextEx(fontTitle, title, Vector2{ W / 2 - tm.x / 2, Hh * 0.1f }, ts, 4, Color{ 204, 0, 0, 255 });
+    float y = Hh * 0.1f + ts + 6 * s;
+    Text(fontUI, "OPERACIÓN LÁZARO", W / 2.0f, y, 30 * s, Color{ 255, 216, 74, 255 }, 0.5f, 2);
+    Text(fontUI, "El Búnker 7 dejó de responder. Frank y Milton van a descubrir qué fue el Proyecto Lázaro y quién está detrás.", W / 2.0f, y + 44 * s, 20 * s, Color{ 200, 200, 200, 255 }, 0.5f, 1);
+    int done = StoryProgress(), n = StoryChapterCount();
+    float bw = 320 * s, bh = 96 * s, gap = 24 * s, x0 = W / 2 - bw * 1.5f - gap, by = Hh * 0.36f;
+    for (int i = 0; i < n; i++) {
+        const char *place, *title = StoryChapterName(i, place);
+        char name[64]; snprintf(name, 64, "%d · %s", i + 1, place);
+        char sub[64]; snprintf(sub, 64, "%s", title);
+        Rectangle r{ x0 + (i % 3) * (bw + gap), by + (i / 3) * (bh + 54 * s), bw, bh };
+        if (i <= done) Button(r, name, sub, 31 + i);
+        else {
+            DrawRectangleRounded(r, 0.12f, 8, Color{ 40, 40, 40, 220 });
+            DrawRectangleRoundedLinesEx(r, 0.12f, 8, 2, Color{ 90, 90, 90, 255 });
+            Text(fontUI, name, r.x + r.width / 2, r.y + r.height * 0.18f, 30 * s, Color{ 130, 130, 130, 255 }, 0.5f, 2);
+            Text(fontUI, "BLOQUEADO", r.x + r.width / 2, r.y + r.height * 0.62f, 16 * s, Color{ 150, 150, 150, 255 }, 0.5f, 1);
+        }
+        const char *st = i < done ? "COMPLETADO" : i == done ? "SIGUIENTE MISIÓN" : "Termina el capítulo anterior";
+        Color sc = i < done ? Color{ 150, 230, 120, 255 } : i == done ? Color{ 255, 216, 74, 255 } : Color{ 130, 130, 130, 255 };
+        Text(fontUI, st, r.x + r.width / 2, r.y + bh + 8 * s, 17 * s, sc, 0.5f, 1);
+    }
+    float ty = by + 2 * (bh + 54 * s) + 6 * s;
+    Text(fontUI, "Milton pelea a tu lado: si cae, mantén E cerca de él para levantarlo. Si caes tú, reintentas el capítulo.", W / 2.0f, ty, 18 * s, Color{ 160, 160, 160, 255 }, 0.5f, 1);
+    Button(Rectangle{ W / 2 - 130 * s, Hh * 0.84f, 260 * s, 52 * s }, "VOLVER", nullptr, 37);
 }
 
 void DrawMenu() {
@@ -372,6 +415,7 @@ void DrawMenu() {
     int W = GetScreenWidth(), Hh = GetScreenHeight();
     if (optionsOpen) { DrawOptions(); return; }
     if (NetLobbyScreen() != LB_NONE) { DrawLobby(); return; }
+    if (storyMenuOpen) { DrawStoryMenu(); return; }
     Overlay();
     const char *title = CONFIG::titulo;
     float ts = 130 * s;
@@ -381,36 +425,46 @@ void DrawMenu() {
     // firma del autor bajo el título y en la esquina
     Text(fontUI, CONFIG::marca, W / 2.0f, Hh * 0.1f + ts + 4 * s, 28 * s, Color{ 230, 230, 230, 255 }, 0.5f, 2);
     Text(fontUI, CONFIG::marca, W - 16 * s, Hh - 34 * s, 18 * s, Color{ 200, 200, 200, 150 }, 1.0f, 1);
-    float bw = 260 * s, bh = 92 * s, gap = 20 * s, by = Hh * 0.36f;
-    float bx0 = W / 2 - bw * 2 - gap * 1.5f;   // cuatro botones centrados
-    Button(Rectangle{ bx0, by, bw, bh }, "BÚNKER", "Pasillos estrechos · 5 zonas", 0);
-    Button(Rectangle{ bx0 + (bw + gap), by, bw, bh }, "FÁBRICA", "Mapa grande · 5 zonas", 1);
-    Button(Rectangle{ bx0 + (bw + gap) * 2, by, bw, bh }, "PUEBLO", "Al aire libre · 7 zonas", 7);
-    Button(Rectangle{ bx0 + (bw + gap) * 3, by, bw, bh }, "CAMPO DE TIRO", "Todas las armas · sin daño", 4);
-    // récords guardados
-    const char *keys[3] = { "bunker", "fabrica", "pueblo" };
-    for (int i = 0; i < 3; i++) {
-        Record r = GetRecord(keys[i]);
-        char b[64];
-        if (r.round > 0) snprintf(b, 64, "Récord: ronda %d · %d bajas", r.round, r.kills);
-        else snprintf(b, 64, "Récord: aún no hay");
-        float cx = bx0 + (bw + gap) * i + bw / 2;
-        Text(fontUI, b, cx, by + bh + 8 * s, 18 * s, r.round > 0 ? Color{ 255, 216, 74, 255 } : Color{ 150, 150, 150, 255 }, 0.5f, 1);
+    // dos filas de mapas (con su récord debajo) y la fila de modos
+    struct MapBtn { const char *name, *sub, *key; int id; };
+    const MapBtn mapsRow[2][4] = {
+        { { "BÚNKER", "Pasillos estrechos · 5 zonas", "bunker", 0 }, { "FÁBRICA", "Mapa grande · 5 zonas", "fabrica", 1 },
+          { "PUEBLO", "Al aire libre · 7 zonas", "pueblo", 7 }, { "HOSPITAL", "San Rafael · 6 zonas", "hospital", 9 } },
+        { { "FUERTE REYES", "Base militar · 7 zonas", "base", 10 }, { "LABORATORIO", "Bajo tierra · 6 zonas", "laboratorio", 11 },
+          { "CAMPO DE TIRO", "Todas las armas · sin daño", nullptr, 4 }, { nullptr, nullptr, nullptr, -1 } } };
+    float bw = 250 * s, bh = 76 * s, gap = 18 * s, by = Hh * 0.30f;
+    for (int row = 0; row < 2; row++) {
+        int n = mapsRow[row][3].name ? 4 : 3;
+        float bx0 = W / 2 - (bw * n + gap * (n - 1)) / 2;
+        float y = by + row * (bh + 34 * s);
+        for (int i = 0; i < n; i++) {
+            const MapBtn &m = mapsRow[row][i];
+            float x = bx0 + (bw + gap) * i;
+            Button(Rectangle{ x, y, bw, bh }, m.name, m.sub, m.id);
+            if (!m.key) continue;
+            Record r = GetRecord(m.key);
+            char b[64];
+            if (r.round > 0) snprintf(b, 64, "Récord: ronda %d · %d bajas", r.round, r.kills);
+            else snprintf(b, 64, "Récord: aún no hay");
+            Text(fontUI, b, x + bw / 2, y + bh + 6 * s, 16 * s, r.round > 0 ? Color{ 255, 216, 74, 255 } : Color{ 150, 150, 150, 255 }, 0.5f, 1);
+        }
     }
-    Button(Rectangle{ W / 2 - 270 * s, by + bh + 40 * s, 260 * s, 52 * s }, "MULTIJUGADOR", nullptr, 8);
-    Button(Rectangle{ W / 2 + 10 * s, by + bh + 40 * s, 260 * s, 52 * s }, "OPCIONES", nullptr, 5);
+    float my = by + 2 * (bh + 34 * s);
+    Button(Rectangle{ W / 2 - 400 * s, my, 260 * s, 52 * s }, "MODO HISTORIA", nullptr, 30);
+    Button(Rectangle{ W / 2 - 130 * s, my, 260 * s, 52 * s }, "MULTIJUGADOR", nullptr, 8);
+    Button(Rectangle{ W / 2 + 140 * s, my, 260 * s, 52 * s }, "OPCIONES", nullptr, 5);
     const char *ctrl[][2] = { { "W A S D", "moverse" }, { "Ratón", "apuntar" }, { "Clic izq.", "disparar" }, { "Clic der.", "mirilla" },
                               { "Shift", "correr" }, { "Espacio", "saltar" }, { "C", "agacharse / deslizar" }, { "G", "granada" },
                               { "R", "recargar" }, { "E", "comprar / reparar / interruptor" }, { "1 / 2 / 3", "cambiar arma" }, { "M", "música" },
                               { "Esc", "pausa" }, { "F11", "pantalla completa" }, { "V", "cuchillo" }, { "F3", "gráficos rápidos" } };
-    float cy = by + bh + 112 * s;
+    float cy = my + 70 * s;
     for (int i = 0; i < 16; i++) {
-        float x = W / 2.0f + (i % 2 ? 30 * s : -330 * s), y = cy + (i / 2) * 26 * s;
+        float x = W / 2.0f + (i % 2 ? 30 * s : -330 * s), y = cy + (i / 2) * 23 * s;
         Text(fontUI, ctrl[i][0], x, y, 18 * s, WHITE, 0, 1);
         Text(fontUI, ctrl[i][1], x + 130 * s, y, 18 * s, Color{ 187, 187, 187, 255 }, 0, 1);
     }
-    Text(fontUI, "Activa la corriente con el interruptor para usar las bebidas y el Pack-a-Punch. Cada pocas rondas llegan los perros del infierno.", W / 2.0f, cy + 8 * 26 * s + 14 * s, 16 * s, Color{ 160, 160, 160, 255 }, 0.5f, 1);
-    Text(fontUI, "Mantén E cerca de una ventana para repararla. Dispara a la cabeza para hacer mucho más daño.", W / 2.0f, cy + 8 * 26 * s + 36 * s, 16 * s, Color{ 160, 160, 160, 255 }, 0.5f, 1);
+    Text(fontUI, "Activa la corriente con el interruptor para usar las bebidas y el Pack-a-Punch. Cada pocas rondas llegan los perros del infierno.", W / 2.0f, cy + 8 * 23 * s + 10 * s, 16 * s, Color{ 160, 160, 160, 255 }, 0.5f, 1);
+    Text(fontUI, "Mantén E cerca de una ventana para repararla. Dispara a la cabeza para hacer mucho más daño.", W / 2.0f, cy + 8 * 23 * s + 32 * s, 16 * s, Color{ 160, 160, 160, 255 }, 0.5f, 1);
 }
 
 void DrawPause() {
@@ -441,6 +495,14 @@ void DrawGameOver() {
     Vector2 tm = MeasureTextEx(fontTitle, t, ts, 4);
     DrawTextEx(fontTitle, t, Vector2{ W / 2 - tm.x / 2 + 4, Hh * 0.16f + 4 }, ts, 4, BLACK);
     DrawTextEx(fontTitle, t, Vector2{ W / 2 - tm.x / 2, Hh * 0.16f }, ts, 4, Color{ 204, 0, 0, 255 });
+    if (StoryActive()) {
+        Text(fontUI, TextFormat("CAPÍTULO %d · %s", StoryChapter() + 1, StoryChapterTitle()), W / 2.0f, Hh * 0.34f, 30 * s, Color{ 255, 216, 74, 255 }, 0.5f, 2);
+        Text(fontUI, TextFormat("Zombis eliminados: %d · a la cabeza: %d", game.kills, game.heads), W / 2.0f, Hh * 0.34f + 50 * s, 24 * s, Color{ 230, 230, 230, 255 }, 0.5f);
+        Text(fontUI, "La misión fracasó. La radio se quedó en silencio...", W / 2.0f, Hh * 0.34f + 90 * s, 22 * s, Color{ 180, 180, 180, 255 }, 0.5f, 1);
+        Button(Rectangle{ W / 2 - 300 * s, Hh * 0.66f, 280 * s, 70 * s }, "REINTENTAR", nullptr, 2);
+        Button(Rectangle{ W / 2 + 20 * s, Hh * 0.66f, 280 * s, 70 * s }, "MENÚ", nullptr, 3);
+        return;
+    }
     char b[5][64];
     Record r = GetRecord(game.mapKey);
     snprintf(b[0], 64, "Mapa: %s", MapName());

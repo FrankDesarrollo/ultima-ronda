@@ -752,6 +752,8 @@ static void DrawSceneGeometry() {
     DrawZombies();
     DrawProjectiles();
     DrawPowerups();
+    DrawStoryWorld();
+    EggsDraw();
 }
 
 static void ShadowPass() {
@@ -854,6 +856,7 @@ void RenderFrame(bool menu) {
     rlDisableDepthMask();
     DrawEffects();
     DrawLabels();
+    DrawStoryLabels();
     NetDrawLabels();
     rlEnableDepthMask();
     EndMode3D();
@@ -919,6 +922,8 @@ void RenderFrame(bool menu) {
         EndShaderMode();
         if (menu) DrawMenu();
         else if (game.state == GS_INTRO) DrawIntro();
+        else if (game.state == GS_STORY) DrawStoryCards();
+        else if (game.state == GS_CUTSCENE) DrawCutscene();
         else {
             DrawHUD();
             if (game.state == GS_PAUSED) DrawPause();

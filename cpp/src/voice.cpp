@@ -39,9 +39,10 @@ void LoadVoiceLines() {
 }
 
 void ResetVoiceLines() { nextSay = 3; speaking = nullptr; subText = nullptr; }
+bool FrankSpeaking() { return speaking && IsSoundPlaying(*speaking); }
 
 void Say(int kind, float chance) {
-    if (game.state != GS_PLAYING || Practice() || lines[kind].empty()) return;
+    if (game.state != GS_PLAYING || Practice() || lines[kind].empty() || StoryTalking() || AllySpeaking()) return;   // no pisar la radio de la historia
     if (speaking && IsSoundPlaying(*speaking)) return;
     bool important = kind == V_ROUND || kind == V_DOGS || kind == V_LOWHP;
     if (T < nextSay && !important) return;

@@ -7,8 +7,8 @@ std::vector<Zombie> zombies;
 // Esqueleto animado: modelo, animaciones y huesos de referencia (cabeza, cadera y cuello)
 struct Rig {
     Model model{};
-    ModelAnimation clips[C_COUNT]{};
-    bool loop[C_COUNT] = { true, true, true, false, true, false, false };
+    ModelAnimation clips[SC_COUNT]{};
+    bool loop[SC_COUNT] = { true, true, true, false, true, false, false };
     float fps = 30;
     int head = 0, hips = 0, neck = 0;
     std::vector<Transform> pose, pose2;
@@ -89,7 +89,11 @@ struct SoldierPart { int mesh, bone; PMat mat; };
 static std::vector<SoldierPart> soldierParts;
 static std::vector<int> soldierBody;   // mallas con piel
 static float soldierScale = 1;
+static int soldierHead = -1;
+struct SoldierSkin { Texture2D camo{}; Color shirt, pants, vest, skin, helmet, pads, sleeves; };
+static SoldierSkin skins[SKIN_COUNT];
 SoldierView soldierView, remoteView;   // Frank en la cinemática y el compañero en co-op
+std::vector<SoldierView> cutsceneActors;   // soldados de las cinemáticas
 
 static void InitSoldier() {
     const char *mp = "assets/models/soldier.glb";
@@ -114,6 +118,33 @@ static void InitSoldier() {
             soldierParts.push_back(p);
         }
     for (int i = 55; i < sr.model.meshCount; i++) soldierBody.push_back(i);
+    // el modelo no trae coordenadas de textura: se proyectan alrededor del cuerpo para poder ponerle camuflaje
+    auto wrapUV = [](Mesh &me, float tilesU, float tilesV) {
+        if (!me.texcoords || !me.vertices) return;
+        for (int k = 0; k < me.vertexCount; k++) {
+            float x = me.vertices[k * 3], y = me.vertices[k * 3 + 1], z = me.vertices[k * 3 + 2];
+            me.texcoords[k * 2] = (atan2f(x, z) / (2 * PI_F) + 0.5f) * tilesU;
+            me.texcoords[k * 2 + 1] = y * tilesV;
+        }
+        UpdateMeshBuffer(me, 1, me.texcoords, me.vertexCount * 2 * sizeof(float), 0);
+    };
+    for (int i : soldierBody) wrapUV(sr.model.meshes[i], 3.0f, 1.8f);
+    if (sr.model.meshCount > 1) wrapUV(sr.model.meshes[1], 2.0f, 2.0f);   // casco
+    soldierHead = FindBone(sr.model, "Head");
+    // uniformes: camuflaje de la camisa y el pantalón, chaleco, casco y piel de cada personaje
+    struct SkinDef { const char *camo; Color shirt, pants, vest, skin, helmet, pads, sleeves; };
+    const SkinDef defs[SKIN_COUNT] = {
+        { "assets/tex/camo_frank.png", { 215, 220, 205, 255 }, { 175, 180, 165, 255 }, { 34, 40, 22, 255 }, { 140, 92, 58, 255 }, { 150, 160, 135, 255 }, { 45, 52, 30, 255 }, { 38, 46, 26, 255 } },
+        { "assets/tex/camo_milton.png", { 230, 220, 200, 255 }, { 195, 185, 165, 255 }, { 70, 52, 30, 255 }, { 178, 128, 88, 255 }, { 200, 185, 150, 255 }, { 80, 64, 40, 255 }, { 92, 76, 52, 255 } },
+        { "assets/tex/camo_guardia.png", { 150, 155, 165, 255 }, { 120, 125, 135, 255 }, { 12, 12, 14, 255 }, { 120, 80, 50, 255 }, { 70, 72, 80, 255 }, { 20, 20, 24, 255 }, { 14, 14, 16, 255 } },
+        { "assets/tex/camo_rosa.png", { 245, 225, 235, 255 }, { 220, 200, 215, 255 }, { 110, 30, 70, 255 }, { 178, 128, 88, 255 }, { 245, 210, 230, 255 }, { 120, 40, 80, 255 }, { 120, 50, 90, 255 } },
+    };
+    for (int k = 0; k < SKIN_COUNT; k++) {
+        SoldierSkin &sk = skins[k];
+        sk.camo = FileExists(defs[k].camo) ? LoadTexture(defs[k].camo) : texWhite;
+        if (sk.camo.id != texWhite.id) { GenTextureMipmaps(&sk.camo); SetTextureFilter(sk.camo, TEXTURE_FILTER_TRILINEAR); SetTextureWrap(sk.camo, TEXTURE_WRAP_REPEAT); }
+        sk.sleeves = defs[k].sleeves; sk.shirt = defs[k].shirt; sk.pants = defs[k].pants; sk.vest = defs[k].vest; sk.skin = defs[k].skin; sk.helmet = defs[k].helmet; sk.pads = defs[k].pads;
+    }
     for (int i = 0; i < sr.model.materialCount; i++) {
         Material &mt = sr.model.materials[i];
         mt.shader = shLitSkin;
@@ -123,9 +154,12 @@ static void InitSoldier() {
     }
     BoundingBox bb = GetMeshBoundingBox(sr.model.meshes[56]);
     soldierScale = 1.8f / std::max(0.5f, bb.max.y - bb.min.y);
-    const char *names[C_COUNT] = { "Run_Gun", "Run", "Idle_Shoot", "Death", "Idle", "Wave", "HitReact" };
+    const char *names[C_COUNT] = { "Run_Gun", "Yes", "Idle_Shoot", "Death", "Idle", "Wave", "HitReact" };   // "Yes" en lugar de "Run": asiente al hablar (C_TALK)
     for (int c = 0; c < C_COUNT; c++) BakeAnimation(sr.model, mp, mp, sr.fps, true, &sr.clips[c], names[c]);
-    for (int c = 0; c < C_COUNT; c++) sr.loop[c] = c != C_DIE;
+    const char *extra[] = { "Duck", "Punch", "No", "Jump", "Run" };   // SC_DUCK .. SC_RUN
+    for (int c = SC_DUCK; c <= SC_RUN; c++) if (!BakeAnimation(sr.model, mp, mp, sr.fps, true, &sr.clips[c], extra[c - SC_DUCK])) TraceLog(LOG_WARNING, "Soldado: falta %s", extra[c - SC_DUCK]);
+    sr.clips[SC_WALK] = sr.clips[C_WALK];   // caminar: la misma animación con el arma, más lenta
+    for (int c = 0; c < SC_COUNT; c++) sr.loop[c] = c != C_DIE && c != SC_DUCK && c != SC_PUNCH && c != SC_JUMP && c != C_HIT;
     if (!LoadInverseBind(mp, sr.invBind) || (int)sr.invBind.size() != sr.model.boneCount) sr.invBind.clear();
     sr.pose.resize(sr.model.boneCount);
     sr.pose2.resize(sr.model.boneCount);
@@ -139,9 +173,30 @@ static void DrawSoldierView(const SoldierView &v) {
 
     if (!v.visible || !sr.model.meshCount) return;
     SampleClip(sr, v.clip, v.t, sr.pose);
+    if (v.clip2 >= 0 && v.w2 > 0.001f) {   // mezcla con la animación anterior (transición suave)
+        SampleClip(sr, v.clip2, v.t2, sr.pose2);
+        float k = 1 - std::min(1.0f, v.w2);
+        for (int i = 0; i < sr.model.boneCount; i++) {
+            sr.pose[i].translation = Vector3Lerp(sr.pose2[i].translation, sr.pose[i].translation, k);
+            sr.pose[i].rotation = QuaternionSlerp(sr.pose2[i].rotation, sr.pose[i].rotation, k);
+        }
+    }
+    if ((v.lookYaw != 0 || v.lookPitch != 0) && soldierHead >= 0)   // gira la cabeza para mirar a alguien
+        sr.pose[soldierHead].rotation = QuaternionMultiply(sr.pose[soldierHead].rotation, QuaternionFromEuler(v.lookPitch, v.lookYaw, 0));
+    // al hablar: la cabeza asiente y se ladea siguiendo la voz
+    if (v.talk > 0.01f && soldierHead >= 0) {
+        float tt = (float)GetTime();
+        Quaternion q = QuaternionFromEuler(sinf(tt * 11.0f) * 0.10f * v.talk + 0.04f * v.talk, sinf(tt * 2.3f) * 0.12f * v.talk, sinf(tt * 4.1f) * 0.07f * v.talk);
+        sr.pose[soldierHead].rotation = QuaternionMultiply(sr.pose[soldierHead].rotation, q);
+    }
     UploadPose(sr);
     float s = soldierScale;
     Matrix m = MatrixMultiply(MatrixMultiply(MatrixScale(s, s, s), MatrixRotateY(v.yaw)), MatrixTranslate(v.pos.x, v.pos.y, v.pos.z));
+    const SoldierSkin &sk = skins[std::max(0, std::min(v.skin, SKIN_COUNT - 1))];
+    if (!depthPass && sr.model.materialCount > 14) {   // el uniforme de este personaje
+        auto set = [&](int mi, Texture2D tex, Color c) { sr.model.materials[mi].maps[MATERIAL_MAP_ALBEDO].texture = tex; sr.model.materials[mi].maps[MATERIAL_MAP_ALBEDO].color = c; };
+        set(13, sk.camo, sk.shirt); set(14, sk.camo, sk.pants); set(10, texWhite, sk.vest); set(12, texWhite, sk.skin); set(11, texWhite, sk.sleeves);
+    }
     for (int i : soldierBody) {
         if (depthPass) { DrawMesh(sr.model.meshes[i], DepthMatSkin(), m); continue; }
         SetSkinParams(0, 0.9f, 0, Vector3{ 0, 0, 0 }, 0);
@@ -151,12 +206,14 @@ static void DrawSoldierView(const SoldierView &v) {
     for (auto &p : soldierParts) {
         Matrix bind = PoseMatrix(sr.model.bindPose[p.bone]), now = PoseMatrix(sr.pose[p.bone]);
         Matrix tf = MatrixMultiply(MatrixMultiply(MatrixInvert(bind), now), m);
+        if (p.mesh == 1) { p.mat.m.maps[MATERIAL_MAP_ALBEDO].texture = sk.camo; p.mat.m.maps[MATERIAL_MAP_ALBEDO].color = sk.helmet; }   // casco
+        if (p.mesh == 3 || p.mesh == 4) p.mat.m.maps[MATERIAL_MAP_ALBEDO].color = sk.pads;                                                // hombreras
         DrawPM(sr.model.meshes[p.mesh], p.mat, tf);
     }
     if (!depthPass) SetSkinParams(0, 1, 1, Vector3{ 0, 0, 0 }, 0);
 }
 
-static void DrawSoldier() { DrawSoldierView(soldierView); DrawSoldierView(remoteView); }
+static void DrawSoldier() { DrawSoldierView(soldierView); DrawSoldierView(remoteView); DrawSoldierView(allyView); for (auto &v : cutsceneActors) DrawSoldierView(v); }
 
 void InitZombies() {
     std::string mp = std::string(ZDIR) + "InfectedCityMan.glb";
@@ -242,6 +299,17 @@ static void PoseZombie(Zombie &z) {
         }
     }
     Matrix zm = ZMatrix(z);
+    if (bigHeads && !z.dog && !z.rag) {   // truco CABEZON: la cabeza (y lo que cuelga de ella) crece alrededor del cuello
+        const float k = 2.3f;
+        Vector3 pivot = r.pose[r.head].translation;
+        for (int b = 0; b < r.model.boneCount; b++) {
+            int p = b;
+            while (p >= 0 && p != r.head) p = r.model.bones[p].parent;
+            if (p != r.head) continue;
+            r.pose[b].scale = Vector3Scale(r.pose[b].scale, k);
+            r.pose[b].translation = Vector3Add(pivot, Vector3Scale(Vector3Subtract(r.pose[b].translation, pivot), k));
+        }
+    }
     z.headPos = Vector3Transform(r.pose[r.head].translation, zm);
     z.hipsPos = Vector3Transform(r.pose[r.hips].translation, zm);
     z.neckPos = Vector3Transform(r.pose[r.neck].translation, zm);
@@ -262,6 +330,14 @@ static void UploadPose(Rig &r) {
         }
         for (int b = 0; b < mesh.boneCount && b < r.model.boneCount; b++) {
             const Transform &in = r.model.bindPose[b], &out = r.pose[b];
+            bool scaled = fabsf(out.scale.x - in.scale.x) > 1e-3f;
+            if (scaled) {   // con escala (truco CABEZON): de la pose de reposo al espacio del hueso y de ahí a la pose, escalando sobre el hueso
+                Matrix invB = MatrixMultiply(MatrixMultiply(MatrixTranslate(-in.translation.x, -in.translation.y, -in.translation.z), QuaternionToMatrix(QuaternionInvert(in.rotation))),
+                                             MatrixScale(1 / in.scale.x, 1 / in.scale.y, 1 / in.scale.z));
+                Matrix outM = MatrixMultiply(MatrixMultiply(MatrixScale(out.scale.x, out.scale.y, out.scale.z), QuaternionToMatrix(out.rotation)), MatrixTranslate(out.translation.x, out.translation.y, out.translation.z));
+                mesh.boneMatrices[b] = MatrixMultiply(invB, outM);
+                continue;
+            }
             Vector3 invT = Vector3RotateByQuaternion(Vector3Negate(in.translation), QuaternionInvert(in.rotation));
             Quaternion invR = QuaternionInvert(in.rotation);
             Vector3 invS = Vector3Divide(Vector3{ 1, 1, 1 }, in.scale);
@@ -285,6 +361,7 @@ void DrawZombies() {
     DrawSoldier();
     for (auto &z : zombies) {
         if (Vector3Distance(z.pos, cam.position) > 45) continue;
+        if (game.state == GS_CUTSCENE && !z.puppet) continue;   // en la cinemática solo se ven los títeres
         if (z.state == Z_RISE && (z.y < -1.85f || z.dog)) continue;   // perro: aún no ha llegado (rayo)
         Rig &r = RigOf(z);
         PoseZombie(z);
@@ -332,7 +409,7 @@ bool RayZombie(Ray r, float maxDist, int &zi, float &dist, bool &head, Vector3 &
             test(Vector3{ mid.x, z.y + 0.25f, mid.z }, 0.22f, false);
             continue;
         }
-        test(z.headPos, 0.17f * z.scale, true);
+        test(bigHeads && !z.dog ? Vector3Add(z.headPos, Vector3{ 0, 0.12f * z.scale, 0 }) : z.headPos, 0.17f * z.scale * (bigHeads ? 2.0f : 1.0f), true);
         // torso y piernas como cadenas de esferas
         for (int k = 0; k <= 3; k++) test(Vector3Lerp(z.hipsPos, z.neckPos, k / 3.0f), 0.24f * z.scale, false);
         Vector3 feet{ z.hipsPos.x, z.y + 0.15f, z.hipsPos.z };
@@ -352,7 +429,8 @@ static float TearInterval() { return std::max(0.45f, 1.3f - game.round * 0.06f);
 
 static bool killByRemote = false;   // co-op (anfitrión): la baja es del compañero
 void KillZombie(Zombie &z, bool head, bool fromNuke) {
-    if (z.state == Z_DEAD) return;
+    if (z.state == Z_DEAD || z.puppet) return;
+    if (fromNuke && z.boss && z.hp > 0) return;   // la bomba nuclear no mata al jefe
     if (z.win >= 0 && windows[z.win].climber == (int)(&z - &zombies[0])) windows[z.win].climber = -1;
     bool wasChase = z.state == Z_CHASE;
     z.state = Z_DEAD;
@@ -393,7 +471,7 @@ void DamageZombie(Zombie &z, float dmg, float headMul, bool head, Vector3 point,
         z.hitForce = clampf(dmg / 80.0f, 1.5f, 6.0f);
     }
     if (head) dmg *= headMul;
-    if (T < game.insta) dmg = 1e9f;
+    if (T < game.insta && !z.boss) dmg = 1e9f;
     z.hp -= dmg;
     z.hitFlash = 0.12f;
     Burst(point, green ? Color{ 70, 255, 70, 255 } : Color{ 120, 0, 0, 255 }, head ? 10 : 5, 2.5f, 0.05f);
@@ -407,6 +485,79 @@ void DamageZombie(Zombie &z, float dmg, float headMul, bool head, Vector3 point,
     else { AddPoints(10); ShowHit(false); Play("hit"); }
 }
 
+
+static Zombie NewZombie(float x, float z, int state, int win, int room);
+// ---------- Títeres de las cinemáticas ----------
+int SpawnPuppet(Vector3 p, float yaw, float scale) {
+    int r = RoomAt(p.x, p.z);
+    Zombie z = NewZombie(p.x, p.z, Z_CHASE, -1, r < 0 ? 0 : r);
+    z.puppet = true; z.yaw = yaw; z.scale = scale; z.hp = 1e9f; z.speed = 0; z.y = p.y;
+    z.clip = C_IDLE; z.clipT = 0; z.blend = 1;
+    if (scale > 1.4f) z.tint = Color{ 255, 175, 165, 255 };
+    zombies.push_back(z);
+    return z.id;
+}
+void PuppetPose(int id, Vector3 p, float yaw, int clip, float t) {
+    for (auto &z : zombies) {
+        if (z.id != id) continue;
+        z.pos = Vector3{ p.x, 0, p.z }; z.y = p.y; z.yaw = yaw;
+        if (z.clip != clip) SetClip(z, clip);
+        z.clipT = t;
+        return;
+    }
+}
+void ClearPuppets() {
+    for (int i = (int)zombies.size() - 1; i >= 0; i--) {
+        if (!zombies[i].puppet) continue;
+        zombies.erase(zombies.begin() + i);
+        for (auto &w : windows) if (w.climber > i) w.climber--;
+    }
+}
+
+// ---------- Jefe final ----------
+int SpawnBoss(Vector3 p, float hp) {
+    int r = RoomAt(p.x, p.z);
+    Zombie z = NewZombie(p.x, p.z, Z_CHASE, -1, r < 0 ? 0 : r);
+    z.boss = true; z.kind = ZK_BRUTE;
+    z.hp = hp; z.scale = 1.8f; z.speed = 1.7f; z.runner = false;
+    z.tint = Color{ 255, 175, 165, 255 };
+    z.clip = C_SCREAM; z.clipT = 0; z.blend = 1;
+    z.bossT = 0; z.summonT = 0;
+    zombies.push_back(z);
+    return z.id;
+}
+const Zombie *FindBoss() {
+    for (auto &z : zombies) if (z.boss && z.state != Z_DEAD) return &z;
+    return nullptr;
+}
+static void UpdateBoss(Zombie &z, float dt) {
+    z.bossT += dt; z.summonT += dt;
+    // embiste cada tanto: grita y corre unos segundos
+    if (z.bossT > 9) { z.bossT = 0; z.chargeT = 2.4f; PlayAt("groan", z.pos, 40); vm.shake = std::max(vm.shake, 0.25f); }
+    if (z.chargeT > 0) { z.chargeT -= dt; z.speed = 4.6f; z.runner = true; }
+    else { z.speed = 1.7f; z.runner = false; }
+    // llama a otros zombis
+    if (z.summonT > 14) { z.summonT = 0; game.toSpawn += 3; if (game.between) game.betweenT = std::min(game.betweenT, 1.0f); PlayAt("groan", z.pos, 50); }
+}
+
+// Disparo de Milton: daño sin puntos para el jugador (la baja es suya)
+bool AllyShootZombie(Zombie &z, float dmg, bool head, Vector3 point, Vector3 from) {
+    if (z.state == Z_DEAD || NetIsClient()) return false;
+    Vector3 d = Vector3Subtract(point, from);
+    float l = Vector3Length(d);
+    z.hitDir = l > 0.01f ? Vector3Scale(d, 1 / l) : Vector3{ 0, 0, 0 };
+    z.hitDir.y = std::max(z.hitDir.y, 0.0f) + 0.15f;
+    z.hitPoint = point; z.hitAll = false; z.hitForce = 2.0f;
+    if (head) dmg *= 2.5f;
+    if (T < game.insta && !z.boss) dmg = 1e9f;
+    z.hp -= dmg;
+    z.hitFlash = 0.12f;
+    Burst(point, Color{ 120, 0, 0, 255 }, head ? 10 : 5, 2.5f, 0.05f);
+    if (z.hp > 0) return false;
+    killByRemote = true; KillZombie(z, head); killByRemote = false;
+    AddPoints(head ? 100 : 60);   // las bajas de Milton también le dan puntos al jugador
+    return true;
+}
 // ---------- IA ----------
 static void FaceTo(Zombie &z, float dx, float dz, float k) {
     float diff = atan2f(dx, dz) - z.yaw;
@@ -427,8 +578,9 @@ static void Attack(Zombie &z) {
     SetClip(z, C_ATTACK);
     z.clipT = 0.25f;
     PlayAt(z.dog ? "dog" : "groan", z.pos, 12);   // gruñido al golpear
-    if (z.atRemote) NetDamageRemote(z.dog ? 25 : 40);   // co-op: el golpe es para el compañero
-    else DamagePlayer(z.dog ? 25 : 40);
+    if (z.atAlly) AllyDamage(z.dog ? 25 : 40);   // el golpe es para Milton
+    else if (z.atRemote) NetDamageRemote(z.dog ? 25 : 40);   // co-op: el golpe es para el compañero
+    else DamagePlayer(z.boss ? 70 : z.dog ? 25 : 40);
 }
 
 static bool UpdateDummy(Zombie &z, float dt, float pdx, float pdz);
@@ -436,12 +588,14 @@ static void UpdateZombie(Zombie &z, int zi, float dt) {
     z.hitFlash = std::max(0.0f, z.hitFlash - dt);
     z.blend = std::min(1.0f, z.blend + dt * 5);
     z.prevT += dt * z.rate;
+    if (z.puppet) return;                      // títere: la cinemática lo mueve
+    if (game.state == GS_CUTSCENE) return;     // durante una cinemática el resto se queda quieto
     // ardiendo (bengala): pierde vida poco a poco
     if (z.burnT > 0 && z.state != Z_DEAD && !NetIsClient()) {
         z.burnT -= dt;
         z.hp -= z.burnDps * dt;
         if (frand(0, 1) < dt * 25) Burst(Vector3Lerp(z.hipsPos, z.neckPos, frand(0, 1)), frand(0, 1) < 0.5f ? Color{ 255, 140, 40, 255 } : Color{ 255, 70, 20, 255 }, 1, 0.6f, 0.08f, 5);
-        if (z.hp <= 0 || T < game.insta) { KillZombie(z, false); ShowHit(true); }
+        if (z.hp <= 0 || (T < game.insta && !z.boss)) { KillZombie(z, false); ShowHit(true); }
         if (z.burnT <= 0) z.burnDps = 0;
     }
     if (z.state == Z_DEAD) {
@@ -502,8 +656,10 @@ static void UpdateZombie(Zombie &z, int zi, float dt) {
     // objetivo: el jugador más cercano que siga en pie (en co-op puede ser el compañero)
     Vector3 tp = player.pos; int troom = player.room;
     bool atRemote = NetZombieTarget(z, tp, troom);
+    bool atAlly = !atRemote && AllyZombieTarget(z, tp, troom);
     float pdx = tp.x - z.pos.x, pdz = tp.z - z.pos.z, pd = hyp(pdx, pdz);
     z.atRemote = atRemote;   // recuerda a quién ataca (lo usa Attack)
+    z.atAlly = atAlly;
     bool moving = false;
     if (z.attackT > 0) z.attackT -= dt;
 
@@ -554,6 +710,7 @@ static void UpdateZombie(Zombie &z, int zi, float dt) {
     } else if (z.state == Z_CHASE && z.dummy >= 0) {
         moving = UpdateDummy(z, dt, pdx, pdz);
     } else if (z.state == Z_CHASE) {
+        if (z.boss) UpdateBoss(z, dt);
         int r = RoomAt(z.pos.x, z.pos.z);
         if (r >= 0) z.room = r;
         float tx = tp.x, tz = tp.z;
@@ -567,12 +724,12 @@ static void UpdateZombie(Zombie &z, int zi, float dt) {
             float depth = L.axis == 'z' ? fabsf(z.pos.x - L.x) : fabsf(z.pos.z - L.z);
             if (lateral > 0.9f && depth > 0.4f) { tx = sc.x; tz = sc.y; } else { tx = sn.x; tz = sn.y; }
         }
-        float reach = z.dog ? 1.5f : 1.1f;   // el hocico del perro queda por delante
+        float reach = z.dog ? 1.5f : 1.1f * std::max(1.0f, z.scale * 0.8f);   // el hocico del perro queda por delante (y el jefe es enorme)
         if (pd > reach || path) moving = MoveToward(z, tx, tz, dt) > 0.05f;
         else FaceTo(z, pdx, pdz, dampk(8, dt));
         if (pd < reach + 0.2f && !path && T >= z.nextAttack) Attack(z);
         if (T > z.stuckCheckT) {
-            if (Vector3Distance(z.pos, z.stuckPos) < 0.6f && pd > 3) { z.remove = true; game.toSpawn++; }
+            if (Vector3Distance(z.pos, z.stuckPos) < 0.6f && pd > 3 && !z.boss) { z.remove = true; game.toSpawn++; }
             z.stuckPos = z.pos;
             z.stuckCheckT = T + 6;
         }
@@ -811,7 +968,7 @@ void NetRemoteHit(int id, float dmg, bool head, Vector3 point, Vector3 dir) {
     if (!z) return;
     z->hitDir = dir; z->hitPoint = point; z->hitAll = false;
     z->hitForce = clampf(dmg / 80.0f, 1.5f, 6.0f);
-    if (T < game.insta) dmg = 1e9f;
+    if (T < game.insta && !z->boss) dmg = 1e9f;
     z->hp -= dmg;
     z->hitFlash = 0.12f;
     Burst(point, Color{ 120, 0, 0, 255 }, head ? 10 : 5, 2.5f, 0.05f);

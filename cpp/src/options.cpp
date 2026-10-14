@@ -19,6 +19,8 @@ void LoadOptions() {
         else if (!strcmp(key, "campo_vision")) opts.fov = clampf(v, 60, 100);
         else if (!strcmp(key, "graficos_rapidos")) opts.lowGfx = v != 0;
         else if (!strcmp(key, "mostrar_fps")) opts.showFps = v != 0;
+        else if (!strcmp(key, "companero")) opts.ally = v != 0;
+        else if (!strcmp(key, "milton_rosa")) opts.allyRosa = v != 0;
     }
     fclose(f);
     lowQuality = opts.lowGfx;
@@ -28,8 +30,8 @@ void SaveOptions() {
     opts.lowGfx = lowQuality;
     FILE *f = fopen("opciones.txt", "w");
     if (!f) return;
-    fprintf(f, "sensibilidad %.2f\nvolumen %.2f\nmusica %.2f\nefectos %.2f\ncampo_vision %.0f\ngraficos_rapidos %d\nmostrar_fps %d\n",
-            opts.sens, opts.master, opts.music, opts.sfx, opts.fov, opts.lowGfx ? 1 : 0, opts.showFps ? 1 : 0);
+    fprintf(f, "sensibilidad %.2f\nvolumen %.2f\nmusica %.2f\nefectos %.2f\ncampo_vision %.0f\ngraficos_rapidos %d\nmostrar_fps %d\ncompanero %d\nmilton_rosa %d\n",
+            opts.sens, opts.master, opts.music, opts.sfx, opts.fov, opts.lowGfx ? 1 : 0, opts.showFps ? 1 : 0, opts.ally ? 1 : 0, opts.allyRosa ? 1 : 0);
     fclose(f);
 }
 

@@ -182,6 +182,21 @@ void InitAudioSynth() {
     Add("heart", [](Buf &b) { Tone(b, SINE, 70, 40, 0.12f, 0.6f); Tone(b, SINE, 65, 38, 0.12f, 0.45f, 0.18f); }, 2);
     Add("pin", [](Buf &b) { Noise(b, 0.05f, HP, 5000, 0.3f, 0.04f); Tone(b, SINE, 2400, 2000, 0.08f, 0.15f, 0.05f); }, 2);
     Add("boom", [](Buf &b) { Noise(b, 1.6f, LP, 500, 1.0f, 1.4f); Tone(b, SINE, 80, 25, 0.9f, 0.9f); Noise(b, 0.3f, LP, 3000, 0.6f, 0.2f); Noise(b, 2.0f, LP, 200, 0.4f, 1.9f, 0.1f); }, 4);
+    Add("bigboom", [](Buf &b) {   // explosión grande: golpe muy grave, rugido largo y crujidos de escombros
+        Tone(b, SINE, 60, 18, 1.8f, 1.0f); Noise(b, 3.5f, LP, 160, 0.9f, 3.2f); Noise(b, 0.5f, LP, 1500, 0.8f, 0.35f);
+        Noise(b, 2.5f, BP, 450, 0.35f, 2.2f, 0.15f);
+        for (int i = 0; i < 14; i++) Noise(b, 0.08f, BP, frand(1200, 3500), frand(0.08f, 0.2f), 0.06f, 0.4f + frand(0, 2.2f));
+    }, 2);
+    Add("debris", [](Buf &b) { for (int i = 0; i < 18; i++) Noise(b, 0.07f, BP, frand(900, 4000), frand(0.06f, 0.22f), 0.05f, 0.3f + powf(frand(0, 1), 1.6f) * 2.4f); }, 3);
+    Add("crossbow", [](Buf &b) {   // cuerda que se suelta: chasquido y zumbido
+        Noise(b, 0.05f, HP, 3000, 0.7f, 0.03f); Tone(b, TRI, 190, 120, 0.35f, 0.45f); Tone(b, SINE, 95, 70, 0.3f, 0.3f); Noise(b, 0.3f, BP, 700, 0.2f, 0.25f, 0.02f);
+    }, 3);
+    Add("flame", [](Buf &b) {      // lanzallamas: soplido de gas que ruge
+        Noise(b, 0.45f, LP, 700, 0.6f, 0.4f); Noise(b, 0.45f, BP, 1800, 0.25f, 0.35f); Noise(b, 0.4f, LP, 160, 0.5f, 0.38f);
+    }, 4);
+    Add("spin", [](Buf &b) { Tone(b, SAW, 70, 420, 0.5f, 0.18f); Tone(b, SQUARE, 35, 210, 0.5f, 0.08f); Noise(b, 0.5f, BP, 1200, 0.15f, 0.45f); }, 2);
+    Add("beep", [](Buf &b) { Tone(b, SQUARE, 1800, 1800, 0.06f, 0.18f); }, 4);
+    Add("ping", [](Buf &b) { Tone(b, SINE, 3100, 3000, 0.5f, 0.25f); Tone(b, SINE, 4650, 4600, 0.35f, 0.1f); Noise(b, 0.03f, HP, 4000, 0.2f, 0.02f); }, 2);
     Add("board", [](Buf &b) { Noise(b, 0.25f, BP, 900, 0.6f, 0.2f); Noise(b, 0.15f, HP, 2500, 0.3f, 0.1f, 0.05f); }, 4);
     Add("repair", [](Buf &b) { Noise(b, 0.06f, BP, 1200, 0.5f, 0.05f); Noise(b, 0.06f, BP, 1100, 0.5f, 0.05f, 0.18f); }, 3);
     Add("laugh", [](Buf &b) { for (int i = 0; i < 6; i++) Tone(b, TRI, 600.0f - i * 50, 300.0f - i * 30, 0.25f, 0.25f, i * 0.3f); }, 1);
@@ -267,12 +282,12 @@ void UpdateMusic() {
     if (trackMainOk) {
         if (!IsMusicStreamPlaying(trackMain)) PlayMusicStream(trackMain);
         UpdateMusicStream(trackMain);
-        SetMusicVolume(trackMain, mv * (inGame ? 0.55f : game.state == GS_INTRO ? 0.3f : 0.8f));   // en la cinemática, más baja para oír la radio
+        SetMusicVolume(trackMain, mv * (inGame ? (StoryTalking() ? 0.3f : 0.55f) : (game.state == GS_INTRO || game.state == GS_STORY || game.state == GS_CUTSCENE) ? 0.3f : 0.8f));   // en la cinemática, más baja para oír la radio
     }
     if (trackAmbOk) {
         if (!IsMusicStreamPlaying(trackAmb)) PlayMusicStream(trackAmb);
         UpdateMusicStream(trackAmb);
-        SetMusicVolume(trackAmb, mv * (inGame || game.state == GS_INTRO ? 0.45f : 0.25f));
+        SetMusicVolume(trackAmb, mv * (inGame || game.state == GS_INTRO || game.state == GS_CUTSCENE ? 0.45f : 0.25f));
     }
     if (!IsSoundPlaying(music)) PlaySound(music);
     SetSoundVolume(music, mv * tensionK);

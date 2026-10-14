@@ -73,9 +73,9 @@ void NetLobbyClick(int click) {
     }
     if (lobby == LB_CHOICE && click == 20) { lobby = LB_HOST_PICK; return; }
     if (lobby == LB_CHOICE && click == 21) { lobby = LB_JOIN; return; }
-    if (lobby == LB_HOST_PICK && click >= 22 && click <= 24) {
-        const char *maps[3] = { "bunker", "fabrica", "pueblo" };
-        startMap = maps[click - 22];
+    if (lobby == LB_HOST_PICK && ((click >= 22 && click <= 24) || (click >= 27 && click <= 29))) {
+        const char *maps[6] = { "bunker", "fabrica", "pueblo", "hospital", "base", "laboratorio" };
+        startMap = maps[click <= 24 ? click - 22 : click - 24];
         if (!NL_Host(PORT)) { status = TextFormat("No se pudo abrir el puerto %d (¿otro programa lo usa?)", PORT); return; }
         role = NET_HOST; started = false;
         lobby = LB_HOSTING;
@@ -330,7 +330,7 @@ void NetUpdate(float dt) {
         bool show = game.state == GS_PLAYING || game.state == GS_PAUSED || game.state == GS_OVER;
         int clip = remote.downed ? C_DIE : remote.speed > 0.6f ? C_WALK : C_ATTACK;
         static float runT = 0; runT += dt * clampf(remote.speed / 4.5f, 0.6f, 1.6f);
-        remoteView = SoldierView{ show, remote.pos, remote.yaw + PI_F, clip, clip == C_WALK ? runT : remote.animT };
+        remoteView = SoldierView{ show, remote.pos, remote.yaw + PI_F, clip, clip == C_WALK ? runT : remote.animT, strcmp(RemoteName(), "MILTON") ? SKIN_FRANK : SKIN_MILTON };
     }
     // el invitado sigue la niebla de las rondas de perros
     if (role == NET_CLIENT) { game.fogK = lerpf(game.fogK, game.dogRound ? 1.0f : 0.0f, dampk(0.8f, dt)); DogFog(game.fogK); }

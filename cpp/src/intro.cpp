@@ -14,15 +14,35 @@ static const float FRANK_RUN = 3.4f;     // segundos que tarda en llegar
 static Vector3 roomC; float roomR = 4;    // toma 2: órbita sobre el centro de la sala
 static float orbitA0 = 0, orbitH0 = 3.4f, orbitH1 = 2.7f;   // al aire libre la toma va mucho más alta
 static Vector3 eyePos, eyeLook;           // toma 3: los ojos del jugador
+// Cómo llegan Frank (y Milton) en la primera toma, distinto en cada mapa
+enum { IS_WINDOW, IS_SNEAK, IS_BACKS, IS_CRANE };
+static int introStyle = IS_WINDOW;
+static Vector3 st0, stF, stR;   // punto de inicio, adelante y derecha
+static float stYaw = 0, roomX1, roomX2, roomZ1, roomZ2;
+static Vector3 InRoomP(Vector3 p) { p.x = clampf(p.x, roomX1 + 0.8f, roomX2 - 0.8f); p.z = clampf(p.z, roomZ1 + 0.8f, roomZ2 - 0.8f); return p; }
+static Vector3 AtS(float fw, float rt, float y) { return Vector3{ st0.x + stF.x * fw + stR.x * rt, y, st0.z + stF.z * fw + stR.z * rt }; }
 
 // ---------- Voces por radio ----------
-struct VoiceLine { Sound snd{}; float start = 0, len = 0; const char *sub = ""; bool played = false; };
+struct VoiceLine { Sound snd{}; float start = 0, len = 0; const char *sub = ""; bool played = false; int who = 0; };
 static VoiceLine voices[4];
 static int voiceCount = 0;
 static std::string voicesMap;
 
-struct IntroText { const char *place; const char *subs[4]; };
+struct IntroText { const char *place; const char *subs[4]; const char *files[4] = {}; int who[4] = {}; };
 static IntroText TextFor(const std::string &key) {
+    // modo historia: la radio del capítulo (Frank y el coronel Reyes)
+    const char *place, *ids[4];
+    if (StoryIntroLines(place, ids)) {
+        IntroText it{ place, {} };
+        for (int i = 0; i < 4; i++) { it.subs[i] = StoryLineText(ids[i], it.who[i]); it.files[i] = ids[i]; }
+        return it;
+    }
+    if (key == "hospital") return { "HOSPITAL SAN RAFAEL · 01:20",
+        { "Base, aquí Frank. Entramos al hospital.", "Huele a desinfectante... y a muerte.", "Las camillas están vacías. Los pacientes no.", "Tapen las ventanas. Ya vienen." } };
+    if (key == "base") return { "FUERTE REYES · 04:05",
+        { "Base, aquí Frank. Estoy dentro del fuerte.", "No hay guardias. Ni uno solo.", "Las puertas del hangar están abiertas.", "Esto era una base... ahora es un nido." } };
+    if (key == "laboratorio") return { "LABORATORIO LÁZARO · NIVEL -3",
+        { "Base, aquí Frank. Bajamos al laboratorio.", "Las cápsulas están rotas desde adentro.", "Algo grande se mueve en el núcleo.", "Si no volvemos... ya saben por qué." } };
     if (key == "pueblo") return { "PUEBLO DE SAN ROQUE · 02:13",
         { "Base, aquí Frank. Entramos al pueblo.", "Las calles están vacías... demasiado vacías.", "Hay tumbas abiertas en el cementerio.", "Que Dios nos ayude. Ya vienen." } };
     if (key == "fabrica") return { "FÁBRICA ABANDONADA · AFUERAS DE LA CIUDAD",
@@ -31,18 +51,20 @@ static IntroText TextFor(const std::string &key) {
         { "Base, aquí Frank. Llegamos al búnker.", "Algo se mueve ahí dentro.", "Tapen las ventanas. No dejen que entren.", "Aguanta. Cambio y fuera." } };
 }
 
-static void LoadVoices(const std::string &key) {
+static void LoadVoices(const std::string &mapKey) {
+    std::string key = StoryActive() ? TextFormat("historia%d", StoryChapter()) : mapKey;
     if (voicesMap == key) return;
     for (int i = 0; i < voiceCount; i++) UnloadSound(voices[i].snd);
     voiceCount = 0; voicesMap = key;
-    IntroText it = TextFor(key);
+    IntroText it = TextFor(mapKey);
     for (int i = 0; i < 4; i++) {
-        const char *path = TextFormat("assets/sfx/voz_%s%d.wav", key.c_str(), i + 1);
+        const char *path = it.files[i] ? StoryLineFile(it.files[i]) : TextFormat("assets/sfx/voz_%s%d.wav", mapKey.c_str(), i + 1);
         if (!IsAudioDeviceReady() || !FileExists(path)) break;
         VoiceLine &v = voices[voiceCount++];
         v = VoiceLine{};
         v.snd = LoadSound(path);
         v.len = v.snd.stream.sampleRate ? (float)v.snd.frameCount / v.snd.stream.sampleRate : 0;
+        v.who = it.who[i];
         v.sub = it.subs[i];
     }
 }
@@ -102,6 +124,13 @@ void StartIntro() {
     // la órbita empieza detrás del jugador para terminar mirando hacia donde él mira
     orbitA0 = player.yaw - 1.1f;
     orbitH0 = r.open ? 11.0f : 3.4f; orbitH1 = r.open ? 6.0f : 2.7f;
+    // primera toma según el mapa: a la ventana corriendo, avanzando despacio, espalda con espalda o grúa
+    st0 = Vector3{ player.pos.x, 0, player.pos.z };
+    stF = Vector3{ -sinf(player.yaw), 0, -cosf(player.yaw) }; stR = Vector3{ cosf(player.yaw), 0, -sinf(player.yaw) };
+    stYaw = atan2f(stF.x, stF.z);
+    roomX1 = r.x1; roomX2 = r.x2; roomZ1 = r.z1; roomZ2 = r.z2;
+    const std::string &k = game.mapKey;
+    introStyle = k == "hospital" || k == "fabrica" ? IS_SNEAK : k == "laboratorio" ? IS_BACKS : k == "pueblo" || k == "base" ? IS_CRANE : IS_WINDOW;
     game.state = GS_INTRO;
     Play("door", 0.5f);
 }
@@ -111,7 +140,8 @@ static void EndIntro() {
     game.state = GS_PLAYING;
     StopVoices();
     Play("door", 0.9f);
-    CenterMsg("SOBREVIVE", Color{ 255, 64, 64, 255 }, 2.5f);
+    if (StoryActive()) StoryOnIntroEnd();
+    else CenterMsg("SOBREVIVE", Color{ 255, 64, 64, 255 }, 2.5f);
 }
 
 void UpdateIntro(float dt) {
@@ -125,7 +155,43 @@ void UpdateIntro(float dt) {
         }
     Vector3 pos, look;
     soldierView.visible = false;
-    if (introT < SHOT1 && (outDir.x != 0 || outDir.y != 0)) {
+    allyView = SoldierView{ ally.active, ally.pos, ally.moveYaw, C_IDLE, introT, AllySkin() };   // en la sala, esperando
+    if (introT < SHOT1 && introStyle != IS_WINDOW) {
+        float k = clampf(introT / SHOT1, 0, 1), walkEnd = SHOT1 - 1.4f;
+        bool walking = false;
+        if (introStyle == IS_BACKS) {
+            // espalda con espalda, apuntando cada uno para un lado; la cámara gira alrededor desde abajo
+            float sway = sinf(introT * 0.7f) * 0.35f;
+            soldierView = SoldierView{ true, InRoomP(AtS(0.32f, 0, 0)), stYaw + sway, C_ATTACK, introT };
+            if (ally.active) allyView = SoldierView{ true, InRoomP(AtS(-0.32f, 0, 0)), stYaw + PI_F + sway, C_ATTACK, introT + 0.4f, AllySkin() };
+            float a = player.yaw + 0.8f + Smooth(k) * 2.2f, rr = lerpf(2.8f, 2.0f, Smooth(k));
+            pos = InRoomP(Vector3{ st0.x + sinf(a) * rr, 0, st0.z + cosf(a) * rr });
+            pos.y = lerpf(0.5f, 1.5f, Smooth(k));
+            look = Vector3{ st0.x, 1.25f, st0.z };
+        } else {
+            // avanzan despacio con el arma lista (o los baja una grúa desde arriba); al final Frank hace la seña de alto
+            float back = introStyle == IS_CRANE ? 7.0f : 4.5f;
+            float wk = clampf(introT / walkEnd, 0, 1), mk = clampf((introT - 0.3f) / walkEnd, 0, 1);
+            Vector3 fp = InRoomP(Vector3Lerp(AtS(-back, -0.5f, 0), AtS(0, -0.5f, 0), wk));
+            Vector3 mp = InRoomP(Vector3Lerp(AtS(-back - 1.1f, 0.7f, 0), AtS(-1.1f, 0.7f, 0), mk));
+            walking = wk < 1;
+            soldierView = SoldierView{ true, fp, stYaw, walking ? SC_WALK : C_SCREAM, walking ? introT * 0.55f : introT - walkEnd };
+            if (walking && wk > 0.85f) { soldierView.clip2 = SC_WALK; soldierView.t2 = introT * 0.55f; }
+            if (ally.active) allyView = SoldierView{ true, mp, stYaw, mk < 1 ? SC_WALK : C_TALK, mk < 1 ? introT * 0.55f + 0.3f : introT, AllySkin() };
+            if (introStyle == IS_CRANE) {
+                float high = rooms[startRoom].open ? 12.0f : H - 0.4f;
+                pos = InRoomP(Vector3Lerp(AtS(3.5f, 1.5f, 0), AtS(2.4f, 0.9f, 0), Smooth(k)));
+                pos.y = lerpf(high, 1.4f, Smooth(k));
+                look = Vector3Add(fp, Vector3{ 0, 1.1f, 0 });
+            } else {   // travelling hacia atrás, delante de ellos y bajo
+                pos = InRoomP(Vector3Add(fp, Vector3Add(Vector3Scale(stF, 2.5f), Vector3Scale(stR, 0.7f))));
+                pos.y = 1.15f + sinf(introT * 1.3f) * 0.02f;
+                look = Vector3Add(fp, Vector3Add(Vector3{ 0, 1.35f, 0 }, Vector3Scale(stR, 0.35f)));
+            }
+        }
+        if (walking && introT > nextStep) { Play("step", 0.3f); nextStep = introT + 0.5f; }
+        if (!groaned && introT > SHOT1 - 1.4f) { groaned = true; Play("groan", 0.8f); }
+    } else if (introT < SHOT1 && (outDir.x != 0 || outDir.y != 0)) {
         // Frank corre con el fusil hasta la ventana y se queda apuntando; la cámara va detrás, sobre el hombro
         float rk = clampf(introT / FRANK_RUN, 0, 1);
         float ease = 1 - (1 - rk) * (1 - rk);
@@ -133,6 +199,11 @@ void UpdateIntro(float dt) {
         bool running = rk < 0.97f;
         soldierView = SoldierView{ true, fp, atan2f(outDir.x, outDir.y), running ? C_WALK : C_ATTACK, running ? introT : introT - FRANK_RUN };
         Vector3 f{ outDir.x, 0, outDir.y }, side{ -outDir.y, 0, outDir.x };
+        if (ally.active) {   // Milton corre detrás, un poco al costado
+            float mk = clampf((introT - 0.25f) / FRANK_RUN, 0, 1);
+            Vector3 mp = Vector3Add(Vector3Lerp(frankFrom, frankTo, 1 - (1 - mk) * (1 - mk)), Vector3Add(Vector3Scale(f, -0.6f), Vector3Scale(side, -1.1f)));
+            allyView = SoldierView{ true, mp, atan2f(outDir.x, outDir.y), mk < 0.97f ? C_WALK : C_ATTACK, mk < 0.97f ? introT + 0.3f : introT - FRANK_RUN, AllySkin() };
+        }
         float push = Smooth((introT - FRANK_RUN) / (SHOT1 - FRANK_RUN));   // al pararse, la cámara se acerca y se abre
         float back = lerpf(3.0f, 2.1f, push), lat = lerpf(0.75f, 1.25f, push);
         pos = Vector3Add(fp, Vector3Add(Vector3Scale(f, -back), Vector3Scale(side, lat)));
@@ -187,6 +258,7 @@ void DrawIntro() {
     // franjas de cine: entran al principio y se retiran al final
     float bars = Smooth(introT / 0.8f) * (1 - Smooth((introT - (INTRO_LEN - 1.0f)) / 1.0f));
     float bh = Hh * 0.12f * bars;
+    DrawFilmLook(bars);
     DrawRectangle(0, 0, W, (int)bh, BLACK);
     DrawRectangle(0, Hh - (int)bh, W, (int)bh + 1, BLACK);
     // fundidos: desde negro, y a negro entre la toma de afuera y la de adentro
@@ -205,8 +277,8 @@ void DrawIntro() {
         float k = introT - SHOT1;
         float a = Smooth((k - 0.5f) / 0.8f) * (1 - Smooth((introT - (INTRO_LEN - 1.8f)) / 0.8f));
         float ts = (120 + k * 4) * s;
-        IText(fontTitle, MapName(), W / 2.0f, Hh * 0.36f - ts / 2, ts, Color{ 204, 0, 0, (unsigned char)(a * 255) }, 0.5f, 6);
-        IText(fontUI, "RONDA 1", W / 2.0f, Hh * 0.36f + ts * 0.62f, 34 * s, Color{ 230, 230, 230, (unsigned char)(a * 220) }, 0.5f, 8);
+        IText(fontTitle, StoryActive() ? TextFormat("CAPÍTULO %d", StoryChapter() + 1) : MapName(), W / 2.0f, Hh * 0.36f - ts / 2, ts, Color{ 204, 0, 0, (unsigned char)(a * 255) }, 0.5f, 6);
+        IText(fontUI, StoryActive() ? StoryChapterTitle() : "RONDA 1", W / 2.0f, Hh * 0.36f + ts * 0.62f, 34 * s, Color{ 230, 230, 230, (unsigned char)(a * 220) }, 0.5f, 8);
     }
     // subtítulos de la radio, dentro de la franja de abajo
     for (int i = 0; i < voiceCount; i++) {
@@ -215,7 +287,7 @@ void DrawIntro() {
         if (k < 0 || k > v.len + 0.2f) continue;
         float a = Smooth(k / 0.15f) * (1 - Smooth((k - v.len) / 0.2f));
         float y = Hh - bh / 2 - 16 * s;
-        IText(fontUI, "FRANK ·", W / 2.0f - MeasureTextEx(fontUI, v.sub, 30 * s, 1).x / 2 - 12 * s, y + 4 * s, 22 * s, Color{ 120, 200, 120, (unsigned char)(a * 220) }, 1, 2);
+        { Color wc = StorySpeakerColor(v.who); wc.a = (unsigned char)(a * 220); IText(fontUI, TextFormat("%s ·", StorySpeakerName(v.who)), W / 2.0f - MeasureTextEx(fontUI, v.sub, 30 * s, 1).x / 2 - 12 * s, y + 4 * s, 22 * s, wc, 1, 2); }
         IText(fontUI, v.sub, W / 2.0f, y, 30 * s, Color{ 240, 240, 240, (unsigned char)(a * 255) }, 0.5f);
     }
     if (introT > 0.8f && introT < INTRO_LEN - 0.8f)

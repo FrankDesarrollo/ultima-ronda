@@ -152,7 +152,7 @@ void DrawBoxAndPap();
 
 // ---------- Armas ----------
 enum WeaponId { W_PISTOL, W_SHOTGUN, W_SMG, W_RIFLE, W_LMG, W_SNIPER, W_REVOLVER, W_RAYGUN, W_WUNDER, W_LAUNCHER, W_RPG,
-                W_SUOMI, W_FLARE, W_MAGNUM, W_SAWED, W_THUNDER, W_COUNT };
+                W_SUOMI, W_FLARE, W_MAGNUM, W_SAWED, W_THUNDER, W_THOMPSON, W_GARAND, W_CROSSBOW, W_FLAMER, W_GATLING, W_COUNT };
 struct WeaponDef {
     const char *name, *papName;
     float dmg, head, rate; bool autoFire; int mag, reserve; float reload, spread; int pellets; float recoil; int cost; float len;
@@ -167,7 +167,9 @@ struct GunModel {
     std::vector<GunPart> parts; float muzzleZ; float muzzleY = 0.015f, sightY = 0.05f, viewScale = 0.75f;
     PMat *papMat = nullptr;   // armas reales: material del Pack-a-Punch
     size_t handStart = 0;     // a partir de esta pieza van las manos
+    size_t spinStart = 0, spinEnd = 0; float spinY = 0;   // piezas que giran sobre el eje del cañón (ametralladora rotativa)
 };
+extern float gatSpinK, gatSpinA;   // ametralladora rotativa: cuánto giran los cañones (0..1) y su ángulo
 extern GunModel gunModels[W_COUNT];
 void BuildGunModels();
 void DrawGun(const GunModel &g, Matrix tf, bool papd, bool hands = true);
@@ -179,6 +181,8 @@ void UpdateEffects(float dt);
 void DrawEffects();
 void DrawProjectiles();
 void Explode(Vector3 p, float dmg, float radius, float selfDmg, float size);
+void ExplosionFX(Vector3 p, float size, bool big);   // solo lo visual y el sonido (cinemáticas)
+void FireFX(Vector3 p, float spread, float k, float dt);   // incendio que sigue ardiendo
 void Burst(Vector3 p, Color c, int n, float speed, float size = 0.05f, float glow = 1);
 void AddDecal(int type, Vector3 p, Vector3 normal);
 void ClearEffects();
@@ -188,6 +192,8 @@ extern std::vector<int> BOX_POOL;
 enum ZState { Z_APPROACH, Z_TEAR, Z_CLIMB, Z_CHASE, Z_RISE, Z_DEAD };
 enum ZKind { ZK_NORMAL, ZK_BRUTE, ZK_BOMBER };
 enum Clip { C_WALK, C_RUN, C_ATTACK, C_DIE, C_IDLE, C_SCREAM, C_HIT, C_COUNT };
+// animaciones que solo tiene el soldado (Frank, Milton y los guardias): agacharse, golpe, negar, salto, correr sin apuntar y caminar
+enum SoldierClip { SC_DUCK = C_COUNT, SC_PUNCH, SC_NO, SC_JUMP, SC_RUN, SC_WALK, SC_COUNT };
 struct Zombie {
     Vector3 pos; float yaw = 0, y = 0; int state; int win = -1; int room = 0;
     float hp, speed; bool runner;
@@ -207,6 +213,9 @@ struct Zombie {
     int id = 0;                            // co-op: el mismo número en las dos PCs
     Vector3 netPos{ 0, 0, 0 }; float netYaw = 0, netY = 0; int netMiss = 0;   // co-op (invitado): última posición que mandó el anfitrión
     bool atRemote = false;                 // co-op (anfitrión): persigue al compañero
+    bool atAlly = false;                   // persigue a Milton (el compañero bot)
+    bool puppet = false;                   // títere de una cinemática: sin IA
+    bool boss = false; float bossT = 0, chargeT = 0, summonT = 0;   // jefe final (Lázaro)
 };
 extern std::vector<Zombie> zombies;
 void InitZombies();
@@ -238,8 +247,10 @@ struct Game {
     float insta = 0, dbl = 0; int drops = 0, kills = 0, heads = 0, repairPts = 0; std::string mapKey = "bunker";
     bool dogRound = false; int nextDogRound = 5, dogRounds = 0; float fogK = 0; Vector3 lastDogPos{ 0, 0, 0 };   // rondas de perros
 };
-enum { GS_MENU, GS_PLAYING, GS_PAUSED, GS_OVER, GS_INTRO };
+enum { GS_MENU, GS_PLAYING, GS_PAUSED, GS_OVER, GS_INTRO, GS_STORY, GS_CUTSCENE };
 void ForceGameOver();   // co-op: el compañero avisa que se acabó
+void ResetGame(const std::string &mapKey);   // empieza una partida en el mapa (con su cinemática)
+void BackToMenu();
 // Cinemática de llegada al mapa (intro.cpp)
 void StartIntro();
 void UpdateIntro(float dt);
@@ -296,6 +307,8 @@ struct Options {
     float master = 0.8f, music = 0.7f, sfx = 1.0f;
     float fov = 75;                         // campo de visión
     bool lowGfx = false, showFps = false;
+    bool ally = false;                      // Milton acompaña también en supervivencia
+    bool allyRosa = true;                   // uniforme rosa de Milton (si se desbloqueó)
 };
 extern Options opts;
 void LoadOptions();
@@ -329,9 +342,83 @@ void ResetVoiceLines();
 void Say(int kind, float chance = 1);   // chance: probabilidad de que hable
 const char *VoiceSubtitle(float &alpha);   // lo que está diciendo Frank ahora (o nullptr)
 
+// ---------- Modo historia "Operación Lázaro" (story.cpp) ----------
+bool StoryActive();
+int StoryChapter();
+int StoryProgress();                       // capítulos terminados (0 a 3)
+void StoryStart(int chapter, bool skipCards = false);
+void StoryQuit();
+void StorySetupMap();                      // objetos y objetivos del capítulo (después de BuildMap)
+void UpdateStory(float dt);
+void StoryAudioTick();                     // pausa la radio con el juego
+bool StoryTalking();                       // la radio está hablando (Frank no se pisa con ella)
+void StoryOnIntroEnd();
+extern bool storyMenuOpen;                 // pantalla para elegir capítulo (hud.cpp)
+bool StoryIntroLines(const char *&place, const char *ids[4]);
+const char *StoryChapterTitle();
+const char *StoryLineFile(const char *id);
+const char *StoryLineText(const char *id, int &who);
+const char *StorySpeakerName(int who);
+Color StorySpeakerColor(int who);
+void UpdateStoryCards(float dt);
+void DrawStoryCards();
+void DrawStoryWorld();
+void DrawStoryLabels();
+void DrawStoryHUD();
+bool PowerSwitchSpot(Vector2 &p);          // dónde está el interruptor de la corriente (world.cpp)
+
+// ---------- Compañero bot: el cabo Milton (ally.cpp) ----------
+struct Ally {
+    bool active = false; Vector3 pos{}; float moveYaw = 0, aimYaw = 0; int room = 0;
+    float health = 160, maxHealth = 160, lastHit = -99;
+    bool downed = false; float downT = 0, reviveK = 0; bool reviveHeld = false;
+    int mag = 30; float reloadT = 0, fireT = 0, animT = 0; int kills = 0;
+};
+extern Ally ally;
+bool AllyEnabled();
+void AllySpawn();                          // después de BuildMap y de colocar al jugador
+void UpdateAlly(float dt);
+void AllyDamage(int n);
+bool AllyZombieTarget(const Zombie &z, Vector3 &pos, int &room);
+void AllyOnRound(bool dogs);
+bool AllySpeaking();
+void DrawAllyHUD();
+bool AllyShootZombie(Zombie &z, float dmg, bool head, Vector3 point, Vector3 from);   // zombie.cpp: true si lo mató
+void AllyTracer(Vector3 a, Vector3 b);    // weapons.cpp
+bool FrankSpeaking();                      // voice.cpp
+bool StoryWantsAlly();                     // story.cpp: ¿este capítulo tiene a Milton?
+void StoryOnAllyDown();
+
+// ---------- Cinemáticas con actores (cutscene.cpp) ----------
+void StartCutscene(const char *id);
+float CutsceneTimeScale();   // cámara lenta de la cinemática (1 = normal)
+void DrawFilmLook(float k);   // viñeta y grano de película
+void UpdateCutscene(float dt);
+void DrawCutscene();
+bool CutsceneActive();
+int SpawnPuppet(Vector3 p, float yaw, float scale);          // zombie.cpp: zombi títere (sin IA)
+void PuppetPose(int id, Vector3 p, float yaw, int clip, float t);
+void ClearPuppets();
+int SpawnBoss(Vector3 p, float hp);                           // zombie.cpp: Lázaro, el jefe final
+const Zombie *FindBoss();
+void StoryOnCutsceneEnd(const char *id);
+Sound *StoryLineSound(const char *id);
+void StopRadioForCutscene();
+float StoryAllyHealth();
+const char *StoryChapterName(int ch, const char *&sub);
+int StoryChapterCount();
+
 // ---------- Frank en la cinemática (zombie.cpp) ----------
-struct SoldierView { bool visible = false; Vector3 pos{}; float yaw = 0; int clip = C_WALK; float t = 0; };
+// skin: uniforme (SKIN_FRANK, SKIN_MILTON, SKIN_GUARDIA, SKIN_ROSA); talk: 0..1, mueve la cabeza al hablar
+enum { SKIN_FRANK, SKIN_MILTON, SKIN_GUARDIA, SKIN_ROSA, SKIN_COUNT };
+struct SoldierView { bool visible = false; Vector3 pos{}; float yaw = 0; int clip = C_WALK; float t = 0; int skin = SKIN_FRANK; float talk = 0;
+                     int clip2 = -1; float t2 = 0, w2 = 0;   // la animación anterior, que se va desvaneciendo (w2: 1 -> 0)
+                     float lookYaw = 0, lookPitch = 0; };   // giro extra de la cabeza (mirar a alguien)
+const int C_TALK = C_RUN;   // soldados: el clip "Run" se cambió por "Yes" (asiente al hablar)
+int AllySkin();             // Milton (o rosa, si se encontró el huevo de pascua)
 extern SoldierView soldierView;   // clip: C_WALK correr con arma, C_ATTACK apuntar, C_IDLE quieto
+extern SoldierView allyView;      // Milton, el compañero bot
+extern std::vector<SoldierView> cutsceneActors;   // soldados extra de las cinemáticas
 
 // ---------- Co-op en línea (net.cpp): Frank es el anfitrión, Milton se une por IP ----------
 enum { NET_OFF, NET_HOST, NET_CLIENT };
@@ -393,3 +480,22 @@ int NetPing();
 bool NetTakeStart(std::string &map);
 void NetRestart(const std::string &map);
 bool NetConnected();             // hay conexión con el compañero (aunque la partida no haya empezado)
+
+// ---------- Diálogo fuera del guion y huevos de pascua (ally.cpp, eggs.cpp) ----------
+void DialogSay(std::vector<const char *> ids);   // frases de guion.tsv en cola (charla con Milton, secretos)
+bool DialogTalking();
+void DialogClear();
+void UpdateDialog();
+void DrawDialogHUD();
+float AllyChatTalk();
+float AllyTalk();
+float VoiceEnvelope(const char *file, float t);   // story.cpp: volumen de la voz en el segundo t (0..1)
+float StoryMiltonTalk();
+bool EggRosa();                                    // ¿Milton usa el uniforme rosa?
+bool EggRosaUnlocked();
+int EggRadiosFound();
+void EggsSetupMap();
+void EggsUpdate();
+void EggsDraw();
+extern bool bigHeads;                              // truco CABEZON
+const char *MapKeyNow();                           // world.cpp: clave del mapa actual
