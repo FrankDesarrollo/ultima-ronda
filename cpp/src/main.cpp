@@ -61,6 +61,7 @@ void StartReload() {
     // recarga grabada según el tipo de arma (o la sintetizada si no hay)
     const char *rs = (w.id == W_PISTOL || w.id == W_REVOLVER || w.id == W_RAYGUN || w.id == W_MAGNUM || w.id == W_FLARE) ? "reload_pistol" : (w.id == W_SMG || w.id == W_SUOMI) ? "reload_smg" : "reload_rifle";
     Play(HasSound(rs) ? rs : "reload");
+    Say(V_RELOAD, 0.2f);
 }
 bool Spend(int cost) {
     if (Practice()) { Play("buy"); return true; }   // campo de tiro: todo gratis
@@ -88,6 +89,7 @@ void DamagePlayer(int n) {
     player.lastHit = T;
     vm.shake = std::max(vm.shake, 0.3f);
     Play("hurt");
+    if (player.health > 0) Say(player.health < player.maxHealth * 0.35f ? V_LOWHP : V_HURT, player.health < player.maxHealth * 0.35f ? 0.6f : 0.45f);
     if (player.health > 0) return;
     if (HasPerk(player, P_REVIVE)) {
         player.perks &= ~(1u << P_REVIVE);
@@ -168,12 +170,14 @@ static void StartRound() {
         game.toSpawn = std::min(24, 4 + game.dogRounds * 4);
         game.spawnT = 3.5f;
         Play("dogstart");
+        Say(V_DOGS);
         CenterMsg("¡RONDA DE PERROS!", Color{ 255, 120, 40, 255 }, 3.5f);
         return;
     }
     game.toSpawn = std::min(70, (int)roundf(5 + game.round * 3 + (game.round > 5 ? game.round * 1.5f : 0)));
     game.spawnT = 1;
     Play("round");
+    if (game.round > 1) Say(V_ROUND, 0.7f);
     if (game.round == 5) SpecialMsg(CONFIG::mensaje5);
     if (game.round == 10) SpecialMsg(CONFIG::mensaje10);
     if (game.round == 15) SpecialMsg(CONFIG::mensaje15);
@@ -291,18 +295,27 @@ static void UpdatePlayer(float dt) {
         player.onGround = false;
     }
     bool wasAir = !player.onGround;
+    float prevY = player.pos.y;
     player.vy -= 18 * dt;
     player.pos.y += player.vy * dt;
-    if (player.pos.y <= 0) {
+    // el suelo puede ser una caja: se cae al bajarse de ella
+    float floorY = GroundAt(player.pos.x, player.pos.z, 0.25f, prevY);
+    player.onGround = false;
+    if (player.pos.y <= floorY) {
         if (wasAir && player.vy < -3) { vm.land = std::min(0.18f, -player.vy * 0.022f); Play("step", 0.8f); }
-        player.pos.y = 0; player.vy = 0; player.onGround = true;
+        player.pos.y = floorY; player.vy = 0; player.onGround = true;
+    }
+    // saltando contra una caja se trepa encima
+    if (!player.onGround && player.vy < 3.5f && (IsKeyDown(KEY_SPACE) || len > 0) && TryMantle(player.pos, player.vel, 0.4f)) {
+        player.vy = 0; player.onGround = true;
+        vm.land = 0.08f; Play("step", 0.6f);
     }
     for (auto &z : zombies) {
         if (z.state != Z_CHASE) continue;
         float dx = player.pos.x - z.pos.x, dz = player.pos.z - z.pos.z, d = hyp(dx, dz);
         if (d < 0.75f && d > 0.001f) { player.pos.x += dx / d * (0.75f - d); player.pos.z += dz / d * (0.75f - d); }
     }
-    Collide(player.pos, 0.4f);
+    Collide(player.pos, 0.4f, true);
     int r = RoomAt(player.pos.x, player.pos.z);
     if (r >= 0) player.room = r;
 
@@ -350,7 +363,7 @@ static void UpdateWeapon(float dt) {
     if (mouseDown && !player.papBusy && player.knifeT < 0 && (s.autoFire || T - mousePressedAt < 0.25f) && !player.reloading && T >= player.nextShot) {
         if (w.mag > 0) Fire();
         else if (w.reserve > 0) StartReload();
-        else { Play("empty"); player.nextShot = T + 0.3f; }
+        else { Play("empty"); player.nextShot = T + 0.3f; Say(V_NOAMMO, 0.5f); }
         mousePressedAt = -9;
     }
     // animación del arma
@@ -418,6 +431,7 @@ static void ResetGame(const std::string &mapKey) {
     player.room = startRoom;
     vm = ViewModel();
     T = 0;
+    ResetVoiceLines();
     GiveWeapon(W_PISTOL);
     if (Practice()) {
         void ResetPractice();
@@ -964,6 +978,29 @@ static int RunTest(const char *mapKey, const char *outPrefix) {
     return 0;
 }
 
+// ---------- Subirse a las cajas (--climb bunker x) ----------
+static int RunClimbTest() {
+    ResetGame("bunker"); game.state = GS_PLAYING;
+    auto step = [](int n) { for (int i = 0; i < n; i++) Update(0.05f); };
+    // caja de 1.2 m en (-5, 4): llegamos saltando hacia ella
+    player.pos = Vector3{ -3.95f, 1.0f, 4 }; player.vel = Vector3{ -5, 0, 0 }; player.onGround = false;
+    bool m = TryMantle(player.pos, player.vel, 0.4f);
+    player.vel = Vector3{ 0, 0, 0 }; player.vy = 0; player.onGround = true;
+    step(20);
+    printf("trepar: %d  altura tras 1 s encima: %.2f (esperado 1.20)\n", (int)m, player.pos.y);
+    player.pos.x = -2.5f; step(20);
+    printf("al bajarse: %.2f (esperado 0.00)\n", player.pos.y);
+    player.pos = Vector3{ -3.95f, 0.2f, 4 }; Vector3 p = player.pos;
+    bool high = TryMantle(p, Vector3{ -5, 0, 0 }, 0.4f);
+    printf("desde el suelo sin saltar no trepa: %d (esperado 0)\n", (int)high);
+    // la caja misteriosa
+    Vector3 bp{ box.pos.x + (box.front.x - box.pos.x) * 0.6f, 0.5f, box.pos.y + (box.front.y - box.pos.y) * 0.6f };
+    Vector3 bv{ (box.pos.x - box.front.x) * 5, 0, (box.pos.y - box.front.y) * 5 };
+    bool bm = TryMantle(bp, bv, 0.4f);
+    printf("caja misteriosa: %d altura %.2f (esperado 1 y 0.85)\n", (int)bm, bp.y);
+    return 0;
+}
+
 // ---------- Capturas de la cinemática de llegada (--intro mapa prefijo) ----------
 static int RunIntroTest(const char *mapKey, const char *outPrefix) {
     RenderTexture2D rt = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
@@ -1016,6 +1053,8 @@ int main(int argc, char **argv) {
     bool test = argc >= 4 && !strcmp(argv[1], "--test");
     bool bench = argc >= 4 && !strcmp(argv[1], "--bench");
     bool intro = argc >= 4 && !strcmp(argv[1], "--intro");
+    bool climb = argc >= 2 && !strcmp(argv[1], "--climb");
+    test = test || climb;
     test = test || intro;
     ChangeDirectory(GetApplicationDirectory());
     unsigned flags = FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT;
@@ -1034,6 +1073,7 @@ int main(int argc, char **argv) {
     BuildGunModels();
     InitZombies();
     InitAudioSynth();
+    LoadVoiceLines();
     LoadOptions();
     LoadPowerupAssets();
     BuildMap("bunker"); PowerOnInstant();
@@ -1043,6 +1083,7 @@ int main(int argc, char **argv) {
     player.weapons.push_back({ W_PISTOL, 8, 80, false });
 
     if (intro) return RunIntroTest(argv[2], argv[3]);
+    if (climb) return RunClimbTest();
     if (test) return !strcmp(argv[2], "practica") ? RunPracticeTest(argv[3]) : RunTest(argv[2], argv[3]);
     if (bench) return RunBench(argv[2], (float)atof(argv[3]));
 

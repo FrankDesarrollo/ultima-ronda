@@ -15,6 +15,7 @@ struct MapDef {
     std::vector<BuyDef> wallBuys; std::vector<PerkPlace> perks; std::vector<PlaceDef> boxSpots; PlaceDef pap;
     std::vector<PropDef> props; std::vector<PipeDef> pipes; std::vector<PlaceDef> ground;
     PlaceDef power{ nullptr, 0, 0 };   // interruptor de la corriente (sin él, la corriente siempre está activada)
+    bool outdoor = false;              // al aire libre: sin techo, con cielo
 };
 
 static const MapDef MAPS[3] = {
@@ -167,8 +168,9 @@ bool NextRoom(int from, int to, int &outRoom, int &outLink) {
     return false;
 }
 
-void Collide(Vector3 &pos, float r) {
+void Collide(Vector3 &pos, float r, bool climb) {
     for (auto &c : colliders) {
+        if (climb && pos.y >= c.top - 0.02f) continue;   // estamos encima
         float cx = clampf(pos.x, c.minX, c.maxX), cz = clampf(pos.z, c.minZ, c.maxZ);
         float dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
         if (d2 >= r * r) continue;
@@ -182,6 +184,25 @@ void Collide(Vector3 &pos, float r) {
             else if (m == t) pos.z = c.minZ - r; else pos.z = c.maxZ + r;
         }
     }
+}
+float GroundAt(float x, float z, float r, float y) {
+    float g = 0;
+    for (auto &c : colliders)
+        if (c.top < 1e8f && c.top <= y + 0.05f && c.top > g && x > c.minX - r && x < c.maxX + r && z > c.minZ - r && z < c.maxZ + r) g = c.top;
+    return g;
+}
+bool TryMantle(Vector3 &pos, Vector3 vel, float r) {
+    for (auto &c : colliders) {
+        if (c.top > 1e8f || c.top <= pos.y + 0.02f || c.top > pos.y + 0.75f) continue;
+        float cx = clampf(pos.x, c.minX, c.maxX), cz = clampf(pos.z, c.minZ, c.maxZ);
+        float dx = cx - pos.x, dz = cz - pos.z, d = hyp(dx, dz);
+        if (d > r + 0.12f) continue;
+        if (d > 0.001f && (vel.x * dx + vel.z * dz) / d < 0.5f) continue;   // hay que ir hacia la caja
+        pos.y = c.top;
+        if (d > 0.001f) { pos.x += dx / d * std::min(d + 0.15f, r); pos.z += dz / d * std::min(d + 0.15f, r); }
+        return true;
+    }
+    return false;
 }
 bool InsideCollider(float x, float z, float r) {
     for (auto &c : colliders) if (x > c.minX - r && x < c.maxX + r && z > c.minZ - r && z < c.maxZ + r) return true;
@@ -420,6 +441,8 @@ static void BuildProp(const PropDef &p) {
     pr.tf = TRSm(Vector3{ p.x, p.h / 2, p.z }, 0, Vector3{ p.w, p.h, p.d });
     props.push_back(pr);
     AddSolidBox(Vector3{ p.x - p.w / 2, 0, p.z - p.d / 2 }, Vector3{ p.x + p.w / 2, p.h, p.z + p.d / 2 }, true);
+    // se puede subir encima (salvo lo muy alto bajo techo, que dejaría la cabeza dentro del techo)
+    if (p.h <= 2.0f || curMap->outdoor) colliders.back().top = p.h;
     // solo las cajas y barriles pequeños se mueven (los contenedores grandes no)
     if ((barrel || !strcmp(p.type, "crate")) && p.h <= 1.3f)
         dynProps.push_back({ (int)props.size() - 1, (int)colliders.size() - 1, (int)solids.size() - 1, Vector3{ p.x, 0, p.z }, Vector3{ 0, 0, 0 },
@@ -467,7 +490,7 @@ static void UpdateDynProps(float dt) {
         if (c.z != dp.pos.z) dp.vel.z *= -0.2f;
         dp.pos.x = c.x; dp.pos.z = c.z;
         (void)own;
-        colliders[dp.col] = Box2{ dp.pos.x - hw, dp.pos.x + hw, dp.pos.z - hd, dp.pos.z + hd };
+        colliders[dp.col] = Box2{ dp.pos.x - hw, dp.pos.x + hw, dp.pos.z - hd, dp.pos.z + hd, dp.pos.y + dp.h };
         solids[dp.solid] = BoundingBox{ Vector3{ dp.pos.x - hw, dp.pos.y, dp.pos.z - hd }, Vector3{ dp.pos.x + hw, dp.pos.y + dp.h, dp.pos.z + hd } };
         props[dp.prop].tf = TRSm(Vector3{ dp.pos.x, dp.pos.y + dp.h / 2, dp.pos.z }, dp.yaw, Vector3{ dp.w, dp.h, dp.d });
         // se duerme cuando se queda quieta en el suelo
@@ -590,7 +613,7 @@ static void PlaceBox(int idx) {
     WallPlace p = WallPlaceAt(room, s.x, s.z);
     float cx = s.x + p.nx * 0.6f, cz = s.z + p.nz * 0.6f;
     float hx = p.nx ? 0.4f : 0.9f, hz = p.nx ? 0.9f : 0.4f;
-    Box2 col{ cx - hx, cx + hx, cz - hz, cz + hz };
+    Box2 col{ cx - hx, cx + hx, cz - hz, cz + hz, 0.85f };   // a la caja misteriosa también se puede subir
     if (box.colIdx >= 0 && box.colIdx < (int)colliders.size()) colliders[box.colIdx] = col;
     else { colliders.push_back(col); box.colIdx = (int)colliders.size() - 1; }
     box.front = Vector2{ cx + p.nx * 1.2f, cz + p.nz * 1.2f };

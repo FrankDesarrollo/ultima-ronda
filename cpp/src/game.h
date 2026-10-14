@@ -77,7 +77,7 @@ extern float camFov;
 void SetSkinned(bool on);
 
 // ---------- Mundo ----------
-struct Box2 { float minX, maxX, minZ, maxZ; };
+struct Box2 { float minX, maxX, minZ, maxZ; float top = 1e9f; };   // top: altura a la que se puede subir (1e9 = pared)
 struct Room { std::string id; float x1, z1, x2, z2; unsigned light; bool flicker; std::vector<Vector2> lights; };
 struct Link { std::string a, b; float x, z; int cost; bool open; char axis; Vector2 sideA, sideB; };
 struct Window {
@@ -121,7 +121,9 @@ int RoomIndex(const std::string &id);
 bool Unlocked(int room);
 void RecomputeUnlocked();
 bool NextRoom(int from, int to, int &outRoom, int &outLink);
-void Collide(Vector3 &pos, float r);
+void Collide(Vector3 &pos, float r, bool climb = false);   // climb: lo que está por debajo de pos.y no estorba
+float GroundAt(float x, float z, float r, float y);         // altura del suelo (o de la caja) bajo los pies
+bool TryMantle(Vector3 &pos, Vector3 vel, float r);         // trepar a una caja al saltar contra ella
 bool InsideCollider(float x, float z, float r);
 void TearBoard(Window &w);
 void UpdateWorld(float dt);
@@ -312,3 +314,9 @@ void PushProps(Vector3 p, float radius, float strength, Vector3 dir = Vector3{ 0
 void PokeProp(Vector3 hit, Vector3 dir);                                                    // un disparo mueve cajas y barriles
 int DynPropCount();          // pruebas
 Vector3 DynPropPos(int i);
+
+// ---------- Frases del personaje (voice.cpp) ----------
+enum VoiceKind { V_HURT, V_KILL, V_HEAD, V_RELOAD, V_ROUND, V_DOGS, V_LOWHP, V_NOAMMO, V_COUNT };
+void LoadVoiceLines();
+void ResetVoiceLines();
+void Say(int kind, float chance = 1);   // chance: probabilidad de que hable

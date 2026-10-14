@@ -276,6 +276,7 @@ void KillZombie(Zombie &z, bool head, bool fromNuke) {
     bool wasChase = z.state == Z_CHASE;
     z.state = Z_DEAD;
     z.deadT = 0;
+    if (!fromNuke && wasChase) Say(head ? V_HEAD : V_KILL, head ? 0.25f : 0.1f);
     SetClip(z, C_DIE);
     if (z.dog) {   // el perro estalla en llamas
         Vector3 c = Vector3Lerp(z.hipsPos, z.neckPos, 0.5f);
