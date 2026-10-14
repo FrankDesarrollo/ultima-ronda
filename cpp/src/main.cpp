@@ -1085,6 +1085,74 @@ static int RunMapShots(const char *mapKey, const char *outPrefix) {
     return 0;
 }
 
+// ---------- Capturas para el README (--capturas prefijo) ----------
+// Una escena por mapa con zombis delante, más la caja misteriosa y una explosión. HUD limpio y sin compañero.
+static int RunPromoShots(const char *outPrefix) {
+    RenderTexture2D cap = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    auto step = [](int n) { for (int i = 0; i < n; i++) Update(0.05f); };
+    auto shot = [&](const char *name) {
+        UpdateCamera();
+        captureTarget = &cap;
+        for (int i = 0; i < 3; i++) RenderFrame(false);
+        captureTarget = nullptr;
+        Image img = LoadImageFromTexture(cap.texture);
+        ImageFlipVertical(&img);
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+        ExportImage(img, TextFormat("%s_%s.png", outPrefix, name));
+        UnloadImage(img);
+    };
+    opts.ally = false; opts.showFps = false; hudClean = true;
+    auto addZombie = [](Vector3 p, int clip) {
+        zombies.push_back(Zombie());
+        Zombie &z = zombies.back();
+        z.pos = p; z.state = Z_CHASE; z.hp = 1e9f; z.speed = 0.01f; z.runner = false;
+        z.nextAttack = 1e9f; z.scale = frand(0.95f, 1.05f); z.clip = clip; z.clipT = frand(0, 3); z.room = RoomAt(p.x, p.z) < 0 ? startRoom : RoomAt(p.x, p.z);
+    };
+    struct Scene { const char *map; int weapon; float ahead, side, dyaw; };
+    const Scene scenes[] = { { "bunker", W_RIFLE, 0, 0, 0 }, { "fabrica", W_LMG, 0, 0, 0 }, { "hospital", W_SHOTGUN, 0, 0, 0 },
+                             { "base", W_THOMPSON, 0, 0, 0 }, { "laboratorio", W_RAYGUN, 0, 0, 0 }, { "pueblo", W_GARAND, 0, 0, 0 } };
+    for (const Scene &sc : scenes) {
+        ResetGame(sc.map); game.state = GS_PLAYING;
+        PowerOnInstant();
+        for (auto &it : interactables) if (it.text().find("puerta") != std::string::npos) it.action();
+        game.zHP = 1e9f; game.toSpawn = 0; game.between = true; game.betweenT = 999; game.round = 3 + irand(6);
+        for (auto &z : zombies) z.remove = true;
+        step(1);
+        float yaw; Vector2 s = MapStart(yaw);
+        player.pos = Vector3{ s.x, 0, s.y }; player.yaw = yaw + sc.dyaw; player.pitch = 0.02f;
+        player.health = player.maxHealth = 100; player.lastHit = -99; player.points = 1500 + irand(40) * 50;
+        Vector3 f{ -sinf(player.yaw), 0, -cosf(player.yaw) }, r{ f.z * -1, 0, f.x };
+        const float zp[4][2] = { { 3.2f, -0.7f }, { 5.0f, 1.4f }, { 6.8f, -1.8f }, { 8.5f, 0.6f } };
+        for (auto &p : zp) addZombie(Vector3Add(player.pos, Vector3Add(Vector3Scale(f, p[0]), Vector3Scale(r, p[1]))), C_WALK);
+        GiveWeapon(sc.weapon); step(12); vm.swap = 0;
+        for (auto &z : zombies) z.nextAttack = 1e9f;
+        player.yaw = yaw + sc.dyaw; player.pitch = 0.02f;
+        shot(sc.map);
+        // caja misteriosa en el búnker y explosión en la fábrica
+        if (!strcmp(sc.map, "bunker")) {
+            for (auto &z : zombies) z.remove = true;
+            step(1);
+            player.pos = Vector3{ box.front.x, 0, box.front.y };
+            float dx = box.pos.x - player.pos.x, dz = box.pos.y - player.pos.z;
+            player.yaw = atan2f(-dx, -dz); player.pitch = -0.3f; player.points = 5000;
+            step(1);
+            if (currentInteract) currentInteract->action();
+            step(30);
+            shot("caja");
+        }
+        if (!strcmp(sc.map, "fabrica")) {
+            GiveWeapon(W_LAUNCHER); step(10); vm.swap = 0;
+            player.pos = Vector3{ s.x, 0, s.y }; player.yaw = yaw; player.pitch = 0.02f;
+            step(1);
+            ExplosionFX(Vector3Add(player.pos, Vector3Scale(f, 6.5f)), 1.6f, true);
+            step(3);
+            shot("explosion");
+        }
+    }
+    printf("capturas listas\n");
+    return 0;
+}
+
 // ---------- Prueba del co-op en esta PC (--net host mapa prefijo / --net join ip prefijo) ----------
 // Dos copias del juego: el anfitrión se queda quieto y el invitado camina y dispira a los zombis.
 static int RunNetTest(bool host, const char *arg, const char *outPrefix) {
@@ -1550,6 +1618,8 @@ int main(int argc, char **argv) {
     bool soldT = argc >= 3 && !strcmp(argv[1], "--soldados");
     bool eggT = argc >= 4 && !strcmp(argv[1], "--secretos");
     bool armasT = argc >= 3 && !strcmp(argv[1], "--armas");
+    bool promo = argc >= 3 && !strcmp(argv[1], "--capturas");
+    test = test || promo;
     test = test || armasT;
     test = test || eggT;
     test = test || soldT;
@@ -1588,6 +1658,7 @@ int main(int argc, char **argv) {
     if (soldT) return RunSoldierShots(argv[2]);
     if (eggT) return RunEggTest(argv[2], argv[3]);
     if (armasT) return RunArmasTest(argv[2]);
+    if (promo) return RunPromoShots(argv[2]);
     if (climb) return RunClimbTest();
     if (netTest) return RunNetTest(!strcmp(argv[2], "host"), argv[3], argv[4]);
     if (shots) return RunMapShots(argv[2], argv[3]);

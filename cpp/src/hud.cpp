@@ -2,6 +2,7 @@
 #include "game.h"
 
 std::string promptText;
+bool hudClean = false;   // capturas para el README: sin nombre, mensajes ni FPS
 static std::string centerText, specialText;
 static Color centerColor = WHITE;
 static float centerT = 0, centerDur = 2.5f, specialT = 0, hitT = 0, roundFlashT = 0, denyT = 0;
@@ -105,7 +106,7 @@ void DrawHUD() {
         DrawTextEx(fontTitle, rb, Vector2{ 34 * s, 12 * s }, fs, 2, rc);
     }
     DrawMinimap(W - 130 * s, 130 * s, 210 * s);
-    if (opts.showFps) { char fb[16]; snprintf(fb, 16, "%d FPS", GetFPS()); Text(fontUI, fb, W - 130 * s, 245 * s, 18 * s, Color{ 160, 255, 160, 255 }, 0.5f, 1); }
+    if (opts.showFps && !hudClean) { char fb[16]; snprintf(fb, 16, "%d FPS", GetFPS()); Text(fontUI, fb, W - 130 * s, 245 * s, 18 * s, Color{ 160, 255, 160, 255 }, 0.5f, 1); }
 
     // mira
     if (!scoped) {
@@ -137,12 +138,12 @@ void DrawHUD() {
         const char *rm = player.reloading ? "RECARGANDO..." : (w.mag == 0 && w.reserve == 0) ? "SIN MUNICIÓN" : (w.mag <= (int)ceilf(st.mag * 0.25f) && w.reserve > 0) ? "PRESIONA R PARA RECARGAR" : "";
         if (*rm) Text(fontUI, rm, W / 2.0f, Hh * 0.56f, 19 * s, WHITE, 0.5f);
     }
-    if (centerT > 0 && game.state == GS_PLAYING) {
+    if (centerT > 0 && game.state == GS_PLAYING && !hudClean) {
         float a = clampf(std::min(centerT, centerDur - centerT + 0.5f) * 2, 0, 1);
         Color c = centerColor; c.a = (unsigned char)(255 * a);
         Text(fontUI, centerText.c_str(), W / 2.0f, Hh * 0.24f, 48 * s, c, 0.5f, 3);
     }
-    if (specialT > 0 && game.state == GS_PLAYING) {
+    if (specialT > 0 && game.state == GS_PLAYING && !hudClean) {
         float a = clampf(std::min(specialT, 4.5f - specialT + 0.5f) * 2, 0, 1);
         Text(fontUI, specialText.c_str(), W / 2.0f, Hh * 0.33f, 36 * s, Color{ 255, 126, 182, (unsigned char)(255 * a) }, 0.5f, 3);
     }
@@ -168,7 +169,7 @@ void DrawHUD() {
     DrawRectangle((int)hx, (int)hy, (int)(240 * s), (int)(10 * s), Color{ 0, 0, 0, 140 });
     DrawRectangleGradientH((int)hx, (int)hy, (int)(240 * s * clampf(player.health / player.maxHealth, 0, 1)), (int)(10 * s), Color{ 138, 0, 0, 255 }, Color{ 232, 48, 48, 255 });
     DrawRectangleLines((int)hx, (int)hy, (int)(240 * s), (int)(10 * s), Color{ 255, 255, 255, 90 });
-    Text(fontUI, TextFormat("SGTO. %s", LocalName()), hx, hy + 14 * s, 17 * s, Color{ 200, 210, 170, 220 }, 0, 1);
+    if (!hudClean) Text(fontUI, TextFormat("SGTO. %s", LocalName()), hx, hy + 14 * s, 17 * s, Color{ 200, 210, 170, 220 }, 0, 1);
     // co-op: el compañero, caer y levantarse
     if (NetActive()) {
         Text(fontUI, TextFormat("%s  %d", RemoteName(), remote.points), W - 40 * s, Hh - 262 * s, 24 * s, remote.downed ? Color{ 255, 90, 60, 255 } : Color{ 150, 230, 120, 255 }, 1, 2);

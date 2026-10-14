@@ -300,6 +300,7 @@ void DrawGameOver();
 void UpdateHUDTimers(float dt);
 int MenuClicked();   // devuelve 0/1 si se eligió un mapa, 2 = jugar de nuevo
 extern std::string promptText;
+extern bool hudClean;   // capturas: oculta el nombre, los mensajes centrales y los FPS
 
 // ---------- Opciones y récords (se guardan junto al juego) ----------
 struct Options {
