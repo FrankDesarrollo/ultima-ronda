@@ -793,6 +793,39 @@ Shader &MaskShader() { return shMask; }
 
 float exposureK = 1.15f, flashK = 0;
 
+// Cielo de los mapas al aire libre: luna con halo y estrellas (se dibuja antes que el resto, sin escribir profundidad)
+static void DrawSky() {
+    if (!MapOutdoor()) return;
+    static std::vector<std::pair<Vector3, float>> stars;
+    static Texture2D glow{};   // brillo redondo blanco (el del fogonazo es naranja)
+    if (!glow.id) { Image g = GenImageGradientRadial(64, 64, 0.0f, WHITE, BLANK); glow = LoadTextureFromImage(g); UnloadImage(g); SetTextureFilter(glow, TEXTURE_FILTER_BILINEAR); }
+    if (stars.empty()) {
+        unsigned s = 12345;
+        auto rnd = [&]() { s = s * 1664525u + 1013904223u; return (s >> 8) / 16777216.0f; };
+        for (int i = 0; i < 260; i++) {
+            float a = rnd() * 2 * PI_F, el = 0.12f + rnd() * 1.3f;
+            stars.push_back({ Vector3{ cosf(a) * cosf(el), sinf(el), sinf(a) * cosf(el) }, 0.25f + rnd() * rnd() * 0.9f });
+        }
+    }
+    rlDrawRenderBatchActive();
+    rlDisableDepthMask();
+    DrawUnlitBegin(1.5f);
+    rlSetBlendMode(BLEND_ADDITIVE);
+    Vector3 c = cam.position;
+    for (auto &st : stars) {
+        float tw = 0.75f + 0.25f * sinf((float)GetTime() * (1.5f + st.second * 3) + st.first.x * 40);
+        DrawBillboard(cam, glow, Vector3Add(c, Vector3Scale(st.first, 125)), st.second * 0.7f, Color{ 220, 230, 255, (unsigned char)(200 * tw) });
+    }
+    Vector3 moon = Vector3Add(c, Vector3Scale(Vector3Normalize(Vector3{ -0.45f, 0.42f, -0.78f }), 120));
+    DrawBillboard(cam, glow, moon, 30, Color{ 90, 110, 170, 255 });
+    DrawBillboard(cam, glow, moon, 9, Color{ 235, 240, 255, 255 });
+    DrawBillboard(cam, glow, moon, 5.5f, Color{ 255, 255, 255, 255 });
+    DrawBillboard(cam, glow, moon, 4.2f, Color{ 255, 255, 255, 255 });
+    rlSetBlendMode(BLEND_ALPHA);
+    DrawUnlitEnd();
+    rlEnableDepthMask();
+}
+
 void RenderFrame(bool menu) {
     ResizeRender();
     GatherLights();
@@ -811,6 +844,7 @@ void RenderFrame(bool menu) {
     cam.fovy = camFov;
     rlSetClipPlanes(0.05, 150.0);
     BeginMode3D(cam);
+    DrawSky();
     DrawSceneGeometry();
     rlDisableDepthMask();
     DrawEffects();

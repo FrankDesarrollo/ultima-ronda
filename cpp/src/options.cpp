@@ -1,5 +1,7 @@
 // Opciones (opciones.txt) y récords por mapa (records.txt), guardados junto al ejecutable.
 #include "game.h"
+
+const char *recordsFile = "records.txt";   // las pruebas usan otro archivo para no tocar los récords del jugador
 #include <map>
 
 Options opts;
@@ -35,7 +37,7 @@ static std::map<std::string, Record> records;
 static bool recordsLoaded = false;
 static void LoadRecords() {
     recordsLoaded = true;
-    FILE *f = fopen("records.txt", "r");
+    FILE *f = fopen(recordsFile, "r");
     if (!f) return;
     char map[64]; Record r;
     while (fscanf(f, "%63s %d %d %d", map, &r.round, &r.kills, &r.heads) == 4) records[map] = r;
@@ -50,7 +52,7 @@ bool SubmitRecord(const std::string &map, int round, int kills, int heads) {
     Record old = GetRecord(map);
     if (round < old.round || (round == old.round && kills <= old.kills)) return false;
     records[map] = Record{ round, kills, heads };
-    FILE *f = fopen("records.txt", "w");
+    FILE *f = fopen(recordsFile, "w");
     if (f) {
         for (auto &p : records) fprintf(f, "%s %d %d %d\n", p.first.c_str(), p.second.round, p.second.kills, p.second.heads);
         fclose(f);

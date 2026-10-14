@@ -2,7 +2,7 @@
 #include "game.h"
 #include <deque>
 
-struct RoomDef { const char *id; float x1, z1, x2, z2; unsigned light; bool flicker; std::vector<Vector2> lights; };
+struct RoomDef { const char *id; float x1, z1, x2, z2; unsigned light; bool flicker; std::vector<Vector2> lights; bool open = false; const char *floor = nullptr; };
 struct LinkDef { const char *a, *b; float x, z; int cost; };
 struct PlaceDef { const char *room; float x, z; };
 struct BuyDef { const char *room; int weapon; float x, z; };
@@ -18,7 +18,7 @@ struct MapDef {
     bool outdoor = false;              // al aire libre: sin techo, con cielo
 };
 
-static const MapDef MAPS[3] = {
+static const MapDef MAPS[4] = {
     { "bunker", "BÚNKER", "bunker", 0, 4, 0, "A",
       { { "A", -10, -10, 10, 10, 0xffd9a0, false, {} }, { "B", -10, -26, 10, -10, 0xffc890, true, {} }, { "C", 10, -8, 28, 8, 0xaaccff, false, {} },
         { "D", -10, 10, 10, 26, 0xff9a9a, false, {} }, { "E", 10, -26, 28, -8, 0xc8a0ff, false, {} } },
@@ -53,6 +53,53 @@ static const MapDef MAPS[3] = {
         { -19, 25, 0.8f, 0.8f, 1.1f, "barrel" }, { 19, 25, 1.2f, 1.2f, 1.2f, "crate" } },
       { { -24, -15.4f, 24, -15.4f }, { -24, 29.4f, 24, 29.4f }, { -23.4f, -8, -23.4f, 12 } },
       { { "A", -5, -5 }, { "A", 5, 9 }, { "A", -5, 9 }, { "A", 5, -5 } }, { "B", -24, -12 } },
+    // Pueblo: mapa grande al aire libre. Plaza, calle, cementerio y estación con cielo abierto;
+    // iglesia, casa y taller con techo.
+    { "pueblo", "PUEBLO", "pueblo", 0, 5, 0, "A",
+      { { "A", -15, -15, 15, 15, 0xffd9a0, false, { { -9, -9 }, { 9, -9 }, { -9, 9 }, { 9, 9 } }, true, "tiles" },          // plaza
+        { "B", -15, -55, 15, -15, 0xffc890, false, { { -10, -25 }, { 10, -38 }, { -10, -50 } }, true, "concfloor" },      // calle principal
+        { "C", 15, -15, 35, 15, 0xffb070, true, { { 25, -7 }, { 25, 7 } }, false, "planks" },                            // iglesia
+        { "D", 35, -25, 65, 25, 0x9ab0ff, false, { { 44, -16 }, { 57, 2 }, { 44, 17 } }, true, "ground" },               // cementerio
+        { "E", -35, -10, -15, 10, 0xffe0b0, false, {}, false, "planks" },                                                // casa
+        { "F", -15, 15, 35, 45, 0xb0d0ff, false, { { -5, 24 }, { 15, 34 }, { 28, 22 }, { 2, 40 } }, true, "concfloor" }, // estación
+        { "G", -45, -45, -15, -10, 0x9affc0, false, { { -35, -35 }, { -25, -20 } }, false, "concfloor" } },             // taller
+      { { "A", "B", 0, -15, 750 }, { "A", "C", 15, 0, 1000 }, { "A", "E", -15, 0, 1000 }, { "A", "F", 0, 15, 1000 },
+        { "C", "D", 35, 0, 1250 }, { "F", "D", 35, 20, 1250 }, { "B", "G", -15, -30, 1000 }, { "G", "E", -25, -10, 750 } },
+      { { "A", -15, 12.5f }, { "B", -15, -50 }, { "B", 15, -25 }, { "B", 15, -45 }, { "B", 5, -55 }, { "C", 21, -15 }, { "C", 29, -15 },
+        { "D", 45, -25 }, { "D", 58, -25 }, { "D", 65, -10 }, { "D", 65, 12 }, { "D", 50, 25 }, { "E", -35, -4 }, { "E", -35, 6 }, { "E", -25, 10 },
+        { "F", -15, 25 }, { "F", -15, 38 }, { "F", 0, 45 }, { "F", 20, 45 }, { "F", 35, 35 }, { "G", -45, -35 }, { "G", -45, -20 }, { "G", -30, -45 }, { "G", -40, -10 } },
+      { { "A", W_SHOTGUN, -15, -12.5f }, { "A", W_SMG, 15, 10 }, { "B", W_RIFLE, 15, -35 }, { "B", W_SAWED, -6, -55 }, { "C", W_LAUNCHER, 25, 15 },
+        { "C", W_MAGNUM, 35, -10 }, { "D", W_SNIPER, 65, 0 }, { "D", W_RPG, 51, -25 }, { "E", W_LMG, -35, -8 }, { "F", W_SUOMI, 35, 40 }, { "G", W_FLARE, -45, -28 } },
+      { { "A", P_REVIVE, 8, -15 }, { "C", P_JUGG, 35, 10 }, { "F", P_SPEED, -15, 32 }, { "G", P_DOUBLE, -32, -10 }, { "B", P_STAMIN, -15, -22 } },
+      { { "A", -7, 15 }, { "B", -15, -38 }, { "D", 65, -18 }, { "F", 10, 45 } },
+      { "D", 35, -20 },
+      { // plaza
+        { -9, -3, 2.0f, 4.2f, 1.5f, "car" }, { 6, 4, 3.2f, 0.8f, 1.0f, "sandbag" }, { 10, -5, 0.8f, 0.8f, 1.1f, "barrel" }, { 10.8f, -5.7f, 0.8f, 0.8f, 1.1f, "barrel" },
+        { -4, 9, 1.2f, 1.2f, 1.2f, "crate" }, { -2.8f, 9, 1.2f, 1.2f, 1.2f, "crate" }, { -11, 6, 0.6f, 0.6f, 6, "tree" }, { 12, 12, 0.6f, 0.6f, 6, "tree" },
+        { 0, 0, 3.0f, 3.0f, 0.8f, "fountain" },
+        // calle principal
+        { -9, -28, 2.0f, 4.2f, 1.5f, "car" }, { 8, -47, 2.0f, 4.2f, 1.5f, "car" }, { 0, -21, 4.5f, 0.8f, 1.0f, "sandbag" }, { -7, -46, 2.5f, 6.0f, 2.6f, "metal" },
+        { 10, -20, 1.2f, 1.2f, 1.2f, "crate" }, { -11, -40, 1.2f, 1.2f, 1.2f, "crate" }, { 4, -33, 0.8f, 0.8f, 1.1f, "barrel" }, { 11, -52, 0.6f, 0.6f, 6, "tree" },
+        // iglesia: bancos y altar
+        { 20.5f, -7, 4, 0.6f, 0.9f, "pew" }, { 29.5f, -7, 4, 0.6f, 0.9f, "pew" }, { 20.5f, -2, 4, 0.6f, 0.9f, "pew" }, { 29.5f, -2, 4, 0.6f, 0.9f, "pew" },
+        { 20.5f, 3, 4, 0.6f, 0.9f, "pew" }, { 29.5f, 3, 4, 0.6f, 0.9f, "pew" }, { 25, -12.5f, 3, 1.2f, 1.1f, "metal" },
+        // cementerio: lápidas y árboles
+        { 40, -19, 0.8f, 0.25f, 1.0f, "tomb" }, { 46, -19, 0.8f, 0.25f, 1.0f, "tomb" }, { 52, -19, 0.8f, 0.25f, 1.0f, "tomb" }, { 58, -19, 0.8f, 0.25f, 1.0f, "tomb" },
+        { 40, -11, 0.8f, 0.25f, 1.0f, "tomb" }, { 50, -11, 0.8f, 0.25f, 1.0f, "tomb" }, { 60, -11, 0.8f, 0.25f, 1.0f, "tomb" },
+        { 45, -4, 0.8f, 0.25f, 1.0f, "tomb" }, { 53, -4, 0.8f, 0.25f, 1.0f, "tomb" }, { 41, 5, 0.8f, 0.25f, 1.0f, "tomb" }, { 49, 5, 0.8f, 0.25f, 1.0f, "tomb" },
+        { 61, 5, 0.8f, 0.25f, 1.0f, "tomb" }, { 52, 12, 0.8f, 0.25f, 1.0f, "tomb" }, { 58, 18, 0.8f, 0.25f, 1.0f, "tomb" }, { 40, 12, 0.8f, 0.25f, 1.0f, "tomb" },
+        { 56, -4, 2.2f, 1.2f, 1.4f, "metal" }, { 38, 22, 0.6f, 0.6f, 7, "tree" }, { 62, -22, 0.6f, 0.6f, 7, "tree" }, { 62, 21, 0.6f, 0.6f, 6, "tree" },
+        // casa
+        { -25, -4, 2.2f, 1.1f, 0.9f, "pew" }, { -31, 6, 1.2f, 1.2f, 1.2f, "crate" }, { -19, -7, 0.8f, 0.8f, 1.1f, "barrel" },
+        // estación: contenedores, auto y sacos
+        { 5, 26, 6, 2.5f, 2.6f, "metal" }, { 21, 38, 6, 2.5f, 2.6f, "metal" }, { -8, 31, 2.0f, 4.2f, 1.5f, "car" }, { 27, 28, 3.5f, 0.8f, 1.0f, "sandbag" },
+        { 12, 20, 1.2f, 1.2f, 1.2f, "crate" }, { 13.2f, 20, 1.2f, 1.2f, 1.2f, "crate" }, { 30, 42, 0.8f, 0.8f, 1.1f, "barrel" }, { -11, 42, 0.6f, 0.6f, 6, "tree" },
+        // taller
+        { -35, -30, 3, 1.5f, 1.6f, "metal" }, { -22, -38, 1.2f, 1.2f, 1.2f, "crate" }, { -40, -40, 0.8f, 0.8f, 1.1f, "barrel" }, { -20, -14, 2.0f, 4.2f, 1.5f, "car" } },
+      {},
+      { { "A", -11, 1 }, { "A", 11, 0 }, { "A", 3, -10 }, { "B", 0, -38 }, { "B", -6, -52 }, { "D", 43, -15 }, { "D", 55, -8 }, { "D", 47, 9 },
+        { "D", 60, 14 }, { "D", 39, 1 }, { "F", 6, 33 }, { "F", 26, 42 }, { "F", -6, 40 } },
+      { "G", -45, -15 }, true },
     // Campo de tiro: una galería larga con todas las armas gratis y dianas-zombi (sin daño al jugador)
     { "practica", "CAMPO DE TIRO", "practica", 0, 3, 0, "A",
       { { "A", -9, -46, 9, 7, 0xffe6c0, false, { { 0, 2 }, { 0, -10 }, { 0, -22 }, { 0, -34 }, { 0, -44 } } } },
@@ -72,6 +119,7 @@ static const MapDef MAPS[3] = {
 struct Theme { const char *wall, *floor, *ceil; float wallUV, floorUV, ceilUV; Vector3 fog, ambient; float fogDensity; };
 static Theme ThemeFor(const char *t) {
     if (!strcmp(t, "practica")) return { "bricks", "concfloor", "ceil", 2.2f, 3.0f, 3.0f, { 0.005f, 0.004f, 0.005f }, { 0.03f, 0.028f, 0.026f }, 0.012f };
+    if (!strcmp(t, "pueblo")) return { "bricks", "concfloor", "ceil", 2.2f, 3.0f, 3.0f, { 0.010f, 0.012f, 0.020f }, { 0.030f, 0.032f, 0.045f }, 0.022f };   // noche con luna
     if (!strcmp(t, "fabrica")) return { "concwall", "concfloor", "metalceil", 3.0f, 3.0f, 2.5f, { 0.006f, 0.007f, 0.009f }, { 0.012f, 0.013f, 0.016f }, 0.035f };
     return { "bricks", "tiles", "ceil", 2.2f, 2.0f, 3.0f, { 0.005f, 0.004f, 0.005f }, { 0.012f, 0.011f, 0.012f }, 0.04f };
 }
@@ -113,6 +161,7 @@ const char *MapName() { return curMap ? curMap->name : ""; }
 bool Practice() { return curMap && !strcmp(curMap->key, "practica"); }
 int Cost(int c) { return Practice() ? 0 : c; }
 static std::string Price(int c) { return Practice() ? std::string("[GRATIS]") : "[" + std::to_string(c) + "]"; }
+bool MapOutdoor() { return curMap && curMap->outdoor; }
 Vector2 MapStart(float &yaw) { yaw = curMap->syaw; return Vector2{ curMap->sx, curMap->sz }; }
 
 int RoomIndex(const std::string &id) {
@@ -229,6 +278,7 @@ struct Builders {
 };
 static Builders builders;
 static Theme theme;
+static float wallH = H;   // altura de las paredes (más altas en los mapas al aire libre, como fachadas)
 
 static void AddSolidBox(Vector3 mn, Vector3 mx, bool collide) {
     solids.push_back(BoundingBox{ mn, mx });
@@ -239,8 +289,8 @@ static void WallSeg(float x1, float z1, float x2, float z2) {
     const float Tk = 0.4f;
     float minX = std::min(x1, x2) - (x1 == x2 ? Tk / 2 : 0), maxX = std::max(x1, x2) + (x1 == x2 ? Tk / 2 : 0);
     float minZ = std::min(z1, z2) - (z1 == z2 ? Tk / 2 : 0), maxZ = std::max(z1, z2) + (z1 == z2 ? Tk / 2 : 0);
-    builders.Get(theme.wall).Box(Vector3{ minX, 0, minZ }, Vector3{ maxX, H, maxZ }, theme.wallUV, 0, 1 | 2 | 16 | 32);
-    AddSolidBox(Vector3{ minX, 0, minZ }, Vector3{ maxX, H, maxZ }, true);
+    builders.Get(theme.wall).Box(Vector3{ minX, 0, minZ }, Vector3{ maxX, wallH, maxZ }, theme.wallUV, 0, 1 | 2 | 16 | 32);
+    AddSolidBox(Vector3{ minX, 0, minZ }, Vector3{ maxX, wallH, maxZ }, true);
     mmWalls.push_back(Box2{ minX, maxX, minZ, maxZ });
 }
 
@@ -301,10 +351,23 @@ static Matrix TRSm(Vector3 pos, float ry, Vector3 scale, float rx = 0, float rz 
     return MatrixMultiply(m, MatrixTranslate(pos.x, pos.y, pos.z));
 }
 
-static PMat *TintedFixture(unsigned color) {
+static PMat *TintedFixture(unsigned color, float k = 5.0f) {
     dynMats.push_back(M("fixture"));
-    dynMats.back().emis = Vector3Scale(ColorV(color), 5.0f);
+    dynMats.back().emis = Vector3Scale(ColorV(color), k);
     return &dynMats.back();
+}
+// Copia de un material con otro color (con sus propios mapas, para no teñir el original). Se crea una vez.
+static PMat *Recolored(const char *base, Color c) {
+    static std::vector<std::pair<std::string, PMat *>> made;
+    std::string key = TextFormat("%s_%02x%02x%02x", base, c.r, c.g, c.b);
+    for (auto &m : made) if (m.first == key) return m.second;
+    PMat *pm = new PMat(M(base));
+    MaterialMap *maps = (MaterialMap *)MemAlloc(sizeof(MaterialMap) * 12 /* MAX_MATERIAL_MAPS de raylib */);
+    memcpy(maps, pm->m.maps, sizeof(MaterialMap) * 12 /* MAX_MATERIAL_MAPS de raylib */);
+    pm->m.maps = maps;
+    pm->m.maps[MATERIAL_MAP_DIFFUSE].color = c;
+    made.push_back({ key, pm });
+    return pm;
 }
 
 static Texture2D ChalkTexture(const WeaponDef &d) {
@@ -343,8 +406,8 @@ static void BuildWindow(Window &w) {
     MeshBuilder &b = builders.Get(theme.wall);
     b.Box(Vector3{ w.x - sx / 2, 0, w.z - sz / 2 }, Vector3{ w.x + sx / 2, 0.9f, w.z + sz / 2 }, theme.wallUV, 0, 1 | 2 | 4 | 16 | 32);
     AddSolidBox(Vector3{ w.x - sx / 2, 0, w.z - sz / 2 }, Vector3{ w.x + sx / 2, 0.9f, w.z + sz / 2 }, true);
-    b.Box(Vector3{ w.x - sx / 2, 2.4f, w.z - sz / 2 }, Vector3{ w.x + sx / 2, H, w.z + sz / 2 }, theme.wallUV, 0, 1 | 2 | 8 | 16 | 32);
-    solids.push_back(BoundingBox{ Vector3{ w.x - sx / 2, 2.4f, w.z - sz / 2 }, Vector3{ w.x + sx / 2, H, w.z + sz / 2 } });
+    b.Box(Vector3{ w.x - sx / 2, 2.4f, w.z - sz / 2 }, Vector3{ w.x + sx / 2, wallH, w.z + sz / 2 }, theme.wallUV, 0, 1 | 2 | 8 | 16 | 32);
+    solids.push_back(BoundingBox{ Vector3{ w.x - sx / 2, 2.4f, w.z - sz / 2 }, Vector3{ w.x + sx / 2, wallH, w.z + sz / 2 } });
     // marco de madera
     MeshBuilder &fr = builders.Get("planks");
     float fx = vertical ? 0.46f : 0.12f, fz = vertical ? 0.12f : 0.46f;
@@ -390,8 +453,8 @@ static void BuildLink(int li) {
     Link &l = links[li];
     bool vertical = l.axis == 'z';
     builders.Get(theme.wall).Box(Vector3{ l.x - (vertical ? 0.2f : 1.5f), 3, l.z - (vertical ? 1.5f : 0.2f) },
-                                 Vector3{ l.x + (vertical ? 0.2f : 1.5f), H, l.z + (vertical ? 1.5f : 0.2f) }, theme.wallUV, 0, 1 | 2 | 8 | 16 | 32);
-    solids.push_back(BoundingBox{ Vector3{ l.x - (vertical ? 0.2f : 1.5f), 3, l.z - (vertical ? 1.5f : 0.2f) }, Vector3{ l.x + (vertical ? 0.2f : 1.5f), H, l.z + (vertical ? 1.5f : 0.2f) } });
+                                 Vector3{ l.x + (vertical ? 0.2f : 1.5f), wallH, l.z + (vertical ? 1.5f : 0.2f) }, theme.wallUV, 0, 1 | 2 | 8 | 16 | 32);
+    solids.push_back(BoundingBox{ Vector3{ l.x - (vertical ? 0.2f : 1.5f), 3, l.z - (vertical ? 1.5f : 0.2f) }, Vector3{ l.x + (vertical ? 0.2f : 1.5f), wallH, l.z + (vertical ? 1.5f : 0.2f) } });
     if (l.open) return;
     float w = vertical ? 0.3f : 3, d = vertical ? 3 : 0.3f;
     Door door;
@@ -433,7 +496,66 @@ static void BuildLink(int li) {
 struct DynProp { int prop, col, solid; Vector3 pos, vel; float w, d, h, yaw, spin; bool barrel, awake; };
 static std::vector<DynProp> dynProps;
 
+// Objetos compuestos del mapa al aire libre: autos, sacos, lápidas, bancos, árboles y la fuente
+static bool BuildFancyProp(const PropDef &p) {
+    auto add = [](Mesh *mesh, PMat *mat, Vector3 pos, Vector3 size, float ry = 0) { props.push_back({ mesh, mat, TRSm(pos, ry, size) }); };
+    auto solid = [&](float top, bool climb) {
+        AddSolidBox(Vector3{ p.x - p.w / 2, 0, p.z - p.d / 2 }, Vector3{ p.x + p.w / 2, top, p.z + p.d / 2 }, true);
+        if (climb) colliders.back().top = top;
+    };
+    if (!strcmp(p.type, "car")) {   // auto abandonado: carrocería, cabina, ruedas y faros rotos
+        add(&unitCube, &M("rust"), Vector3{ p.x, 0.65f, p.z }, Vector3{ p.w, 0.8f, p.d });
+        add(&unitCube, &M("darkmetal"), Vector3{ p.x, 1.3f, p.z + p.d * 0.05f }, Vector3{ p.w * 0.9f, 0.55f, p.d * 0.48f });
+        for (int i = 0; i < 4; i++)   // ruedas: cilindros tumbados
+            props.push_back({ &unitCyl, &M("darkmetal"), TRSm(Vector3{ p.x + (i & 1 ? 1 : -1) * p.w * 0.47f, 0.35f, p.z + (i & 2 ? 1 : -1) * p.d * 0.32f }, 0, Vector3{ 0.7f, 0.25f, 0.7f }, 0, PI_F / 2) });
+        solid(1.55f, true);
+        return true;
+    }
+    if (!strcmp(p.type, "sandbag")) {   // muro de sacos de arena
+        int n = std::max(2, (int)(std::max(p.w, p.d) / 0.6f));
+        bool alongX = p.w >= p.d;
+        for (int row = 0; row < 3; row++)
+            for (int i = 0; i < n - (row & 1); i++) {
+                float t = -0.5f + (i + 0.5f + (row & 1) * 0.5f) / n;
+                Vector3 pos{ p.x + (alongX ? t * p.w : 0), 0.17f + row * 0.32f, p.z + (alongX ? 0 : t * p.d) };
+                add(&unitSphere, &M("ground"), pos, alongX ? Vector3{ 0.62f, 0.34f, p.d * 0.9f } : Vector3{ p.w * 0.9f, 0.34f, 0.62f });
+            }
+        solid(p.h, true);
+        return true;
+    }
+    if (!strcmp(p.type, "tomb")) {   // lápida con su base
+        add(&unitCube, &M("concwall"), Vector3{ p.x, p.h / 2 + 0.1f, p.z }, Vector3{ p.w, p.h, p.d }, frand(-0.08f, 0.08f));
+        add(&unitCube, &M("concwall"), Vector3{ p.x, 0.05f, p.z + 0.5f }, Vector3{ p.w + 0.3f, 0.12f, 1.6f });
+        solid(p.h + 0.1f, true);
+        return true;
+    }
+    if (!strcmp(p.type, "pew")) {   // banco o mesa de madera
+        add(&unitCube, &M("planks"), Vector3{ p.x, p.h - 0.06f, p.z }, Vector3{ p.w, 0.12f, p.d });
+        add(&unitCube, &M("planks"), Vector3{ p.x - p.w * 0.4f, p.h / 2 - 0.06f, p.z }, Vector3{ 0.1f, p.h - 0.12f, p.d * 0.9f });
+        add(&unitCube, &M("planks"), Vector3{ p.x + p.w * 0.4f, p.h / 2 - 0.06f, p.z }, Vector3{ 0.1f, p.h - 0.12f, p.d * 0.9f });
+        solid(p.h, true);
+        return true;
+    }
+    if (!strcmp(p.type, "tree")) {   // árbol seco: tronco y copa oscura
+        add(&unitCyl, &M("wood"), Vector3{ p.x, p.h * 0.35f, p.z }, Vector3{ p.w, p.h * 0.7f, p.d });
+        add(&unitSphere, Recolored("ground", Color{ 70, 95, 55, 255 }), Vector3{ p.x, p.h * 0.72f, p.z }, Vector3{ 3.6f, 2.6f, 3.6f });
+        add(&unitSphere, Recolored("ground", Color{ 70, 95, 55, 255 }), Vector3{ p.x + 0.8f, p.h * 0.88f, p.z - 0.4f }, Vector3{ 2.6f, 2.0f, 2.6f });
+        AddSolidBox(Vector3{ p.x - p.w / 2, 0, p.z - p.d / 2 }, Vector3{ p.x + p.w / 2, p.h * 0.7f, p.z + p.d / 2 }, true);
+        return true;
+    }
+    if (!strcmp(p.type, "fountain")) {   // fuente de piedra de la plaza
+        add(&unitCyl, &M("concwall"), Vector3{ p.x, p.h / 2, p.z }, Vector3{ p.w, p.h, p.d });
+        add(&unitCyl, &M("darkmetal"), Vector3{ p.x, p.h - 0.02f, p.z }, Vector3{ p.w * 0.85f, 0.06f, p.d * 0.85f });
+        add(&unitCyl, &M("concwall"), Vector3{ p.x, p.h + 0.6f, p.z }, Vector3{ 0.45f, 1.2f, 0.45f });
+        add(&unitCyl, &M("concwall"), Vector3{ p.x, p.h + 1.25f, p.z }, Vector3{ 1.3f, 0.15f, 1.3f });
+        solid(p.h, true);
+        return true;
+    }
+    return false;
+}
+
 static void BuildProp(const PropDef &p) {
+    if (BuildFancyProp(p)) return;
     Prop pr;
     bool barrel = !strcmp(p.type, "barrel");
     if (barrel) { pr.mesh = &unitCyl; pr.mat = &M("barrel"); }
@@ -893,7 +1015,7 @@ void BuildMap(const char *key) {
     theme = ThemeFor(curMap->theme);
     themeFog = theme.fog; themeAmbient = theme.ambient; themeFogDensity = theme.fogDensity;
 
-    for (auto &r : curMap->rooms) rooms.push_back(Room{ r.id, r.x1, r.z1, r.x2, r.z2, r.light, r.flicker, r.lights });
+    for (auto &r : curMap->rooms) rooms.push_back(Room{ r.id, r.x1, r.z1, r.x2, r.z2, r.light, r.flicker, r.lights, r.open });
     startRoom = RoomIndex(curMap->startRoom);
     for (auto &ld : curMap->links) {
         Link l{ ld.a, ld.b, ld.x, ld.z, ld.cost, ld.cost == 0, 'x', {}, {} };
@@ -912,11 +1034,28 @@ void BuildMap(const char *key) {
     // suelo exterior
     builders.Get("ground").Box(Vector3{ -110, -0.12f, -110 }, Vector3{ 110, -0.02f, 110 }, 4.0f, 0, 4);
     // salas: suelo, techo y luces
-    for (auto &r : rooms) {
-        builders.Get(theme.floor).Box(Vector3{ r.x1, -0.1f, r.z1 }, Vector3{ r.x2, 0, r.z2 }, theme.floorUV, 0, 4);
-        builders.Get(theme.ceil).Box(Vector3{ r.x1, H, r.z1 }, Vector3{ r.x2, H + 0.1f, r.z2 }, theme.ceilUV, 0, 8);
+    wallH = curMap->outdoor ? 6.5f : H;
+    for (size_t ri = 0; ri < rooms.size(); ri++) {
+        const Room &r = rooms[ri];
+        const char *floorMat = curMap->rooms[ri].floor ? curMap->rooms[ri].floor : theme.floor;
+        builders.Get(floorMat).Box(Vector3{ r.x1, -0.1f, r.z1 }, Vector3{ r.x2, 0, r.z2 }, theme.floorUV, 0, 4);
         std::vector<Vector2> ls = r.lights;
         if (ls.empty()) ls.push_back(Vector2{ (r.x1 + r.x2) / 2, (r.z1 + r.z2) / 2 });
+        if (r.open) {
+            // al aire libre: sin techo y con farolas
+            for (auto &lp : ls) {
+                lights.push_back({ Vector3{ lp.x, 4.9f, lp.y }, Vector3Scale(ColorV(r.light), 24.0f), 26.0f, r.flicker, 1, true });
+                props.push_back({ &unitCyl, &M("darkmetal"), TRSm(Vector3{ lp.x, 2.6f, lp.y }, 0, Vector3{ 0.16f, 5.2f, 0.16f }) });
+                props.push_back({ &unitCube, &M("darkmetal"), TRSm(Vector3{ lp.x, 5.25f, lp.y }, 0, Vector3{ 0.9f, 0.18f, 0.5f }) });
+                props.push_back({ &unitCube, TintedFixture(r.light), TRSm(Vector3{ lp.x, 5.13f, lp.y }, 0, Vector3{ 0.75f, 0.06f, 0.38f }) });
+                colliders.push_back(Box2{ lp.x - 0.12f, lp.x + 0.12f, lp.y - 0.12f, lp.y + 0.12f });
+                solids.push_back(BoundingBox{ Vector3{ lp.x - 0.1f, 0, lp.y - 0.1f }, Vector3{ lp.x + 0.1f, 5.2f, lp.y + 0.1f } });
+            }
+            continue;
+        }
+        builders.Get(theme.ceil).Box(Vector3{ r.x1, H, r.z1 }, Vector3{ r.x2, H + 0.1f, r.z2 }, theme.ceilUV, 0, 8);
+        // en un mapa con paredes altas, el tejado tapa el hueco hasta lo alto de las fachadas
+        if (wallH > H) builders.Get("rust").Box(Vector3{ r.x1, wallH - 0.1f, r.z1 }, Vector3{ r.x2, wallH, r.z2 }, 3.0f, 0, 4);
         for (auto &lp : ls) {
             lights.push_back({ Vector3{ lp.x, H - 0.35f, lp.y }, Vector3Scale(ColorV(r.light), 19.0f), 24.0f, r.flicker, 1, true });
             props.push_back({ &unitCube, TintedFixture(r.light), TRSm(Vector3{ lp.x, H - 0.05f, lp.y }, 0, Vector3{ 1.2f, 0.06f, 0.35f }) });
@@ -936,6 +1075,31 @@ void BuildMap(const char *key) {
     }
     BuildWalls();
     for (auto &w : windows) BuildWindow(w);
+    // fachadas de las calles: ventanas altas (algunas con luz) y cornisa, para que parezcan edificios
+    if (curMap->outdoor) {
+        unsigned seed = 7;
+        auto rnd = [&]() { seed = seed * 1103515245u + 12345u; return (seed >> 9) / 8388608.0f; };
+        for (auto &r : rooms) {
+            if (!r.open) continue;
+            for (int e = 0; e < 4; e++) {
+                bool alongX = e < 2;
+                float fixed = e == 0 ? r.z1 : e == 1 ? r.z2 : e == 2 ? r.x1 : r.x2;
+                float a = alongX ? r.x1 : r.z1, b = alongX ? r.x2 : r.z2;
+                float in = (e == 0 || e == 2) ? 0.22f : -0.22f;   // hacia dentro de la calle
+                float c = fixed + in;
+                Vector3 corn = alongX ? Vector3{ (a + b) / 2, wallH - 0.25f, c } : Vector3{ c, wallH - 0.25f, (a + b) / 2 };
+                props.push_back({ &unitCube, &M("concwall"), TRSm(corn, 0, alongX ? Vector3{ b - a, 0.3f, 0.2f } : Vector3{ 0.2f, 0.3f, b - a }) });
+                for (float t = a + 2.5f; t < b - 2.0f; t += 4.0f + rnd() * 1.5f) {
+                    Vector3 pos = alongX ? Vector3{ t, 4.4f, c } : Vector3{ c, 4.4f, t };
+                    Vector3 frame = alongX ? Vector3{ 1.3f, 1.7f, 0.08f } : Vector3{ 0.08f, 1.7f, 1.3f };
+                    Vector3 pane = alongX ? Vector3{ 1.05f, 1.45f, 0.1f } : Vector3{ 0.1f, 1.45f, 1.05f };
+                    props.push_back({ &unitCube, &M("wood"), TRSm(pos, 0, frame) });
+                    bool lit = rnd() < 0.22f;
+                    props.push_back({ &unitCube, lit ? TintedFixture(rnd() < 0.5f ? 0xffb060 : 0xffd9a0, 1.2f) : &M("darkmetal"), TRSm(pos, 0, pane) });
+                }
+            }
+        }
+    }
     // farolas exteriores frente a algunas ventanas
     for (size_t i = 0; i < windows.size(); i += 3) {
         Window &w = windows[i];

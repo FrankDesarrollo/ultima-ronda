@@ -970,11 +970,38 @@ static int RunTest(const char *mapKey, const char *outPrefix) {
         GameOver();
         printf("récord nuevo: %d, guardado: ronda %d\n", (int)newRecord, GetRecord(mapKey).round);
         shot("fin");
-        remove("records.txt");
+        remove(recordsFile);
     }
     }
     captureTarget = nullptr;
     printf("TEST OK\n");
+    return 0;
+}
+
+// ---------- Capturas desde varios puntos de un mapa (--shots mapa prefijo) ----------
+static int RunMapShots(const char *mapKey, const char *outPrefix) {
+    RenderTexture2D rt = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    ResetGame(mapKey); game.state = GS_PLAYING;
+    PowerOnInstant();
+    for (auto &it : interactables) if (it.text().find("puerta") != std::string::npos) it.action();
+    player.points = 0;
+    struct View { float x, z, yaw, pitch; const char *name; };
+    const View views[] = { { 0, 12, 0, 0.05f, "plaza" }, { 0, 12, 0.6f, 0.75f, "cielo" }, { 0, -20, 0, 0, "calle" },
+                           { 38, 0, -1.57f, 0, "cementerio" }, { 30, 0, 1.57f, 0, "iglesia" }, { -12, 22, -2.3f, 0.02f, "estacion" }, { -20, -20, 2.4f, 0, "taller" } };
+    for (auto &v : views) {
+        player.pos = Vector3{ v.x, 0, v.z }; player.yaw = v.yaw; player.pitch = v.pitch; player.vel = Vector3{ 0, 0, 0 };
+        for (int i = 0; i < 10; i++) Update(0.05f);
+        player.yaw = v.yaw; player.pitch = v.pitch;
+        Update(0.05f);
+        captureTarget = &rt;
+        for (int i = 0; i < 2; i++) RenderFrame(false);
+        captureTarget = nullptr;
+        Image img = LoadImageFromTexture(rt.texture);
+        ImageFlipVertical(&img);
+        ExportImage(img, TextFormat("%s_%s.png", outPrefix, v.name));
+        UnloadImage(img);
+    }
+    printf("capturas de %s listas; zombis: %d\n", mapKey, (int)zombies.size());
     return 0;
 }
 
@@ -1054,6 +1081,8 @@ int main(int argc, char **argv) {
     bool bench = argc >= 4 && !strcmp(argv[1], "--bench");
     bool intro = argc >= 4 && !strcmp(argv[1], "--intro");
     bool climb = argc >= 2 && !strcmp(argv[1], "--climb");
+    bool shots = argc >= 4 && !strcmp(argv[1], "--shots");
+    test = test || shots;
     test = test || climb;
     test = test || intro;
     ChangeDirectory(GetApplicationDirectory());
@@ -1082,8 +1111,10 @@ int main(int argc, char **argv) {
     cam.projection = CAMERA_PERSPECTIVE;
     player.weapons.push_back({ W_PISTOL, 8, 80, false });
 
+    if (test) recordsFile = "records_prueba.txt";
     if (intro) return RunIntroTest(argv[2], argv[3]);
     if (climb) return RunClimbTest();
+    if (shots) return RunMapShots(argv[2], argv[3]);
     if (test) return !strcmp(argv[2], "practica") ? RunPracticeTest(argv[3]) : RunTest(argv[2], argv[3]);
     if (bench) return RunBench(argv[2], (float)atof(argv[3]));
 
@@ -1111,6 +1142,7 @@ int main(int argc, char **argv) {
             UpdateWorld(dt);
             UpdateEffects(dt);
             if (click == 0 || click == 1) ResetGame(click == 0 ? "bunker" : "fabrica");
+            if (click == 7) ResetGame("pueblo");
             if (click == 4) ResetGame("practica");
             if (click == 5) optionsOpen = true;
             if (optionsOpen && (click == 6 || IsKeyPressed(KEY_ESCAPE))) { optionsOpen = false; SaveOptions(); }

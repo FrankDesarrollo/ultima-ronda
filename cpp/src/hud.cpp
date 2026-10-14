@@ -300,18 +300,20 @@ void DrawMenu() {
     // firma del autor bajo el título y en la esquina
     Text(fontUI, CONFIG::marca, W / 2.0f, Hh * 0.1f + ts + 4 * s, 28 * s, Color{ 230, 230, 230, 255 }, 0.5f, 2);
     Text(fontUI, CONFIG::marca, W - 16 * s, Hh - 34 * s, 18 * s, Color{ 200, 200, 200, 150 }, 1.0f, 1);
-    float bw = 280 * s, bh = 92 * s, gap = 24 * s, by = Hh * 0.36f;
-    Button(Rectangle{ W / 2 - bw * 1.5f - gap, by, bw, bh }, "BÚNKER", "Pasillos estrechos · 5 zonas", 0);
-    Button(Rectangle{ W / 2 - bw / 2, by, bw, bh }, "FÁBRICA", "Mapa grande · 5 zonas", 1);
-    Button(Rectangle{ W / 2 + bw / 2 + gap, by, bw, bh }, "CAMPO DE TIRO", "Todas las armas · sin daño", 4);
+    float bw = 260 * s, bh = 92 * s, gap = 20 * s, by = Hh * 0.36f;
+    float bx0 = W / 2 - bw * 2 - gap * 1.5f;   // cuatro botones centrados
+    Button(Rectangle{ bx0, by, bw, bh }, "BÚNKER", "Pasillos estrechos · 5 zonas", 0);
+    Button(Rectangle{ bx0 + (bw + gap), by, bw, bh }, "FÁBRICA", "Mapa grande · 5 zonas", 1);
+    Button(Rectangle{ bx0 + (bw + gap) * 2, by, bw, bh }, "PUEBLO", "Al aire libre · 7 zonas", 7);
+    Button(Rectangle{ bx0 + (bw + gap) * 3, by, bw, bh }, "CAMPO DE TIRO", "Todas las armas · sin daño", 4);
     // récords guardados
-    const char *keys[2] = { "bunker", "fabrica" };
-    for (int i = 0; i < 2; i++) {
+    const char *keys[3] = { "bunker", "fabrica", "pueblo" };
+    for (int i = 0; i < 3; i++) {
         Record r = GetRecord(keys[i]);
         char b[64];
         if (r.round > 0) snprintf(b, 64, "Récord: ronda %d · %d bajas", r.round, r.kills);
         else snprintf(b, 64, "Récord: aún no hay");
-        float cx = W / 2 + (i == 0 ? -bw - gap : 0.0f);
+        float cx = bx0 + (bw + gap) * i + bw / 2;
         Text(fontUI, b, cx, by + bh + 8 * s, 18 * s, r.round > 0 ? Color{ 255, 216, 74, 255 } : Color{ 150, 150, 150, 255 }, 0.5f, 1);
     }
     Button(Rectangle{ W / 2 - 130 * s, by + bh + 40 * s, 260 * s, 52 * s }, "OPCIONES", nullptr, 5);

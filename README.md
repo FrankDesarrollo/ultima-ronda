@@ -25,9 +25,13 @@ Hecho desde cero en **C++ con raylib**: renderizado PBR, sombras, ragdolls y aud
 |:---:|:---:|
 | <img src="docs/img/fabrica.png" alt="Mapa Fábrica"> | <img src="docs/img/caja.png" alt="Caja misteriosa"> |
 
+<p align="center"><img src="docs/img/pueblo.png" alt="Mapa Pueblo, al aire libre" width="85%"><br><em>Pueblo: el mapa al aire libre</em></p>
+
 ## ✨ Características
 
-- 🗺️ **Dos mapas**: **Búnker** (pasillos estrechos) y **Fábrica** (mapa grande), cada uno con 5 zonas que se desbloquean con puntos, y un **Campo de tiro** para probar todas las armas gratis.
+- 🗺️ **Tres mapas**: **Búnker** (pasillos estrechos) y **Fábrica** (mapa grande), con 5 zonas cada uno, y **Pueblo**, un mapa grande **al aire libre** de noche con 7 zonas: plaza, calle principal, iglesia, cementerio, estación, casa y taller, con cielo con luna y estrellas, farolas, autos abandonados y zombis que salen de la tierra. Además, un **Campo de tiro** para probar todas las armas gratis.
+- 🧗 **Te podés subir** a cajas, barriles, autos, lápidas, sacos de arena y a la caja misteriosa: saltá contra ellos y trepás solo.
+- 🗣️ **El personaje habla**: insulta a los zombis cuando lo hieren y comenta las bajas, los tiros a la cabeza, las recargas, las rondas nuevas y los perros.
 - 🎬 **Cinemática de llegada** en cada mapa, con un soldado hablando por radio y subtítulos: te acercás de noche a una ventana, la cámara recorre la sala y baja hasta tus ojos (se salta con `Espacio`).
 - 🔫 **16 armas**, de pistolas a lanzamisiles, incluidas las **armas maravilla** que solo salen en la caja: Pistola de rayos, Wunderwaffe DG-2 (rayos en cadena) y Cañón de trueno.
 - 🎁 **Caja misteriosa** (950) con su osito que la hace mudarse, y **Pack-a-Punch** (5000) para mejorar cualquier arma con nombre nuevo.

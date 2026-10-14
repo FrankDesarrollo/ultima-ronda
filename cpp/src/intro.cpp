@@ -10,7 +10,7 @@ static float introT = 0, nextStep = 0;
 static bool groaned = false;
 static Vector3 outFrom, outTo, outLook;   // toma 1
 static Vector3 roomC; float roomR = 4;    // toma 2: órbita sobre el centro de la sala
-static float orbitA0 = 0;
+static float orbitA0 = 0, orbitH0 = 3.4f, orbitH1 = 2.7f;   // al aire libre la toma va mucho más alta
 static Vector3 eyePos, eyeLook;           // toma 3: los ojos del jugador
 
 // ---------- Voces por radio ----------
@@ -21,6 +21,8 @@ static std::string voicesMap;
 
 struct IntroText { const char *place; const char *subs[4]; };
 static IntroText TextFor(const std::string &key) {
+    if (key == "pueblo") return { "PUEBLO DE SAN ROQUE · 02:13",
+        { "Base, aquí unidad siete. Entramos al pueblo.", "Las calles están vacías... demasiado vacías.", "Hay tumbas abiertas en el cementerio.", "Que Dios nos ayude. Ya vienen." } };
     if (key == "fabrica") return { "FÁBRICA ABANDONADA · AFUERAS DE LA CIUDAD",
         { "Base, aquí unidad siete. Llegamos a la fábrica.", "No queda nadie... o eso parece.", "Escucho pasos. No estamos solos.", "Prepárate. Ya vienen." } };
     return { "BÚNKER 7 · 23:47",
@@ -65,7 +67,7 @@ static float Smooth(float x) { x = clampf(x, 0, 1); return x * x * (3 - 2 * x); 
 
 static void OrbitPose(float k, Vector3 &pos, Vector3 &look) {
     float a = orbitA0 + k * 1.1f;
-    pos = Vector3{ roomC.x + sinf(a) * roomR, lerpf(3.4f, 2.7f, k), roomC.z + cosf(a) * roomR };
+    pos = Vector3{ roomC.x + sinf(a) * roomR, lerpf(orbitH0, orbitH1, k), roomC.z + cosf(a) * roomR };
     look = Vector3{ roomC.x, 0.9f, roomC.z };
 }
 
@@ -94,6 +96,7 @@ void StartIntro() {
     roomR = std::min(r.x2 - r.x1, r.z2 - r.z1) * 0.36f;
     // la órbita empieza detrás del jugador para terminar mirando hacia donde él mira
     orbitA0 = player.yaw - 1.1f;
+    orbitH0 = r.open ? 11.0f : 3.4f; orbitH1 = r.open ? 6.0f : 2.7f;
     game.state = GS_INTRO;
     Play("door", 0.5f);
 }

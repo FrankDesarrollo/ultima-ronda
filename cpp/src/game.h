@@ -78,7 +78,7 @@ void SetSkinned(bool on);
 
 // ---------- Mundo ----------
 struct Box2 { float minX, maxX, minZ, maxZ; float top = 1e9f; };   // top: altura a la que se puede subir (1e9 = pared)
-struct Room { std::string id; float x1, z1, x2, z2; unsigned light; bool flicker; std::vector<Vector2> lights; };
+struct Room { std::string id; float x1, z1, x2, z2; unsigned light; bool flicker; std::vector<Vector2> lights; bool open = false; };   // open: al aire libre (sin techo)
 struct Link { std::string a, b; float x, z; int cost; bool open; char axis; Vector2 sideA, sideB; };
 struct Window {
     std::string room; float x, z; int nx, nz; int boards = 5;
@@ -129,6 +129,7 @@ void TearBoard(Window &w);
 void UpdateWorld(float dt);
 const char *MapName();
 bool Practice();          // ¿estamos en el campo de tiro?
+bool MapOutdoor();        // ¿el mapa es al aire libre? (cielo con luna)
 int Cost(int c);
 void UpdatePractice(float dt);
 Vector2 MapStart(float &yaw);
@@ -297,6 +298,7 @@ void SaveOptions();
 struct Record { int round = 0, kills = 0, heads = 0; };
 Record GetRecord(const std::string &map);
 bool SubmitRecord(const std::string &map, int round, int kills, int heads);   // true si es un récord nuevo
+extern const char *recordsFile;
 extern bool optionsOpen;
 void DrawOptions();
 bool PauseButtonHover();
