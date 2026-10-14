@@ -502,6 +502,7 @@ static void ThunderBlast(float range) {
 }
 
 void Fire() {
+    player.shots++;   // co-op: el compañero oye cada disparo
     OwnedWeapon &w = CurWeapon();
     WStats s = Stats(w.id, w.pap);
     bool dt2 = HasPerk(player, P_DOUBLE);
@@ -895,4 +896,11 @@ void LightningStrike(Vector3 p) {
     Burst(Vector3{ p.x, 0.1f, p.z }, Color{ 70, 60, 60, 255 }, 8, 1.2f, 0.1f, 1);
     boomLightPos = Vector3{ p.x, 2.5f, p.z }; boomLightI = std::max(boomLightI, 30.0f);
     PlayAt("strike", p, 35);
+}
+
+// Co-op: el disparo del compañero suena donde está él
+void PlayGunAt(int weapon, Vector3 pos) {
+    if (weapon < 0 || weapon >= W_COUNT) return;
+    if (GUN_SND[weapon] && HasSound(TextFormat("g_%s", GUN_SND[weapon]))) PlayAt(TextFormat("g_%s", GUN_SND[weapon]), pos, 45);
+    else PlayAt(SOUND_NAMES[WEAPONS[weapon].sound], pos, 45);
 }

@@ -56,6 +56,20 @@ Hecho desde cero en **C++ con raylib**: renderizado PBR, sombras, ragdolls y aud
 | `M` | Música | `F3` | Gráficos rápidos |
 | `F11` | Pantalla completa | `Esc` | Pausa y opciones |
 
+## 🌐 Multijugador (co-op en línea)
+
+Dos jugadores por internet, P2P por IP pública: **Frank** crea la partida y **Milton** se une.
+
+1. **Frank** abre una vez el puerto **UDP 27015** en su router (reenvío de puertos hacia su PC) y acepta el aviso del firewall de Windows.
+2. **Frank**: `MULTIJUGADOR → CREAR PARTIDA →` elige el mapa. El juego muestra su IP pública.
+3. **Milton**: `MULTIJUGADOR → UNIRSE →` escribe esa IP (o `Ctrl+V`) `→ CONECTAR`.
+
+- 🧠 **El anfitrión manda**: zombis, rondas, ventanas, power-ups y daño se calculan en la PC de Frank, así nunca se desincronizan.
+- ⚡ **Sin retraso al moverse**: cada uno mueve a su soldado en su PC; la red (UDP con [ENet](http://enet.bespin.org)) manda posiciones 30 veces por segundo y los eventos importantes por un canal confiable.
+- 🤝 **Compartido**: puertas, corriente, tablas de las ventanas y power-ups. **De cada uno**: puntos, armas, bebidas y Pack-a-Punch.
+- 🩹 **Caer y levantarse**: si caés, tu compañero tiene 30 s para levantarte manteniendo `E`.
+- Si el proveedor usa CGNAT y el puerto no se puede abrir, sirve igual con Radmin VPN o ZeroTier.
+
 ## 🛠️ Compilar
 
 El juego compila con un **g++ portátil (w64devkit)** y **raylib 5.5**, que no están en el repo por su tamaño.
@@ -103,6 +117,7 @@ Todos los recursos externos son libres (CC0 u OFL):
 - **Música**: "Insistent" de yd y "Abandoned passages" de congusbongus (OpenGameArt)
 - **Fuentes**: Oswald y Creepster (Google Fonts, SIL OFL)
 - **Motor**: [raylib](https://www.raylib.com) (zlib)
+- **Red del co-op**: [ENet](http://enet.bespin.org) de Lee Salzman (MIT)
 
 ---
 

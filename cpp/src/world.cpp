@@ -430,13 +430,29 @@ static void BuildWindow(Window &w) {
         Window &w = windows[wi];
         if (T < w.repairT || w.boards >= 5) return;
         w.repairT = T + 0.55f;
-        int i = w.boards;
-        w.boardAnim[i] = -1; w.boardPos[i] = w.boardBase[i]; w.boardVis[i] = true; w.boardSpin[i] = 0;
-        w.boards++;
+        RepairBoardNow(wi);
         Play("repair");
         if (game.repairPts < 500) { game.repairPts += 10; AddPoints(10); }
+        NetOnRepair(wi);
     };
     interactables.push_back(it);
+}
+
+// Vuelve a poner una tabla (sin sonido ni puntos)
+void RepairBoardNow(int wi) {
+    if (wi < 0 || wi >= (int)windows.size()) return;
+    Window &w = windows[wi];
+    if (w.boards >= 5) return;
+    int i = w.boards;
+    w.boardAnim[i] = -1; w.boardPos[i] = w.boardBase[i]; w.boardVis[i] = true; w.boardSpin[i] = 0;
+    w.boards++;
+}
+// Co-op (invitado): deja la ventana con las tablas que dice el anfitrión
+void SetWindowBoards(int wi, int count) {
+    if (wi < 0 || wi >= (int)windows.size()) return;
+    Window &w = windows[wi];
+    while (w.boards > count) TearBoard(w);
+    while (w.boards < count) RepairBoardNow(wi);
 }
 
 void TearBoard(Window &w) {
@@ -467,29 +483,37 @@ static void BuildLink(int li) {
     char txt[32]; snprintf(txt, 32, "PUERTA · %d", l.cost);
     Texture2D lt = Lbl(txt, Color{ 255, 216, 74, 255 });
     for (int s = -1; s <= 1; s += 2) labels.push_back({ lt, Vector3{ l.x + (vertical ? s * 0.45f : 0), 2.45f, l.z + (vertical ? 0 : s * 0.45f) }, 1.9f, true });
+    door.lab0 = (int)labels.size() - 2;
     doors.push_back(door);
-    int di = (int)doors.size() - 1;
-    int lab0 = (int)labels.size() - 2;
     Interact it;
     it.pos = [li]() { return Vector2{ links[li].x, links[li].z }; };
     it.range = 2.6f;
     it.active = [li]() { return !links[li].open; };
     it.text = [li]() { char b[64]; snprintf(b, 64, "Presiona E para abrir la puerta [%d]", links[li].cost); return std::string(b); };
-    it.action = [li, di, lab0]() {
-        if (!Spend(links[li].cost)) return;
-        links[li].open = true;
-        Door &dr = doors[di];
+    it.action = [li]() {
+        if (links[li].open || !Spend(links[li].cost)) return;
+        OpenLinkNow(li);
+        NetOnDoorOpened(li);   // en co-op se abre también para el compañero
+    };
+    interactables.push_back(it);
+}
+
+// Abre la puerta de un enlace (sin cobrar): la compra local o el aviso del compañero
+void OpenLinkNow(int li) {
+    if (li < 0 || li >= (int)links.size() || links[li].open) return;
+    links[li].open = true;
+    for (auto &dr : doors) {
+        if (dr.link != li) continue;
         // se anulan (no se borran) para no mover los índices de otras colisiones
         for (auto &c : colliders)
             if (c.minX == dr.col.minX && c.minZ == dr.col.minZ && c.maxX == dr.col.maxX && c.maxZ == dr.col.maxZ) { c = Box2{ 1e6f, 1e6f, 1e6f, 1e6f }; break; }
         for (auto &s : solids)
             if (s.min.x == dr.col.minX && s.min.z == dr.col.minZ && s.max.y == 3) { s = BoundingBox{ { 1e6f, 1e6f, 1e6f }, { 1e6f, 1e6f, 1e6f } }; break; }
-        labels[lab0].visible = labels[lab0 + 1].visible = false;
+        if (dr.lab0 >= 0) labels[dr.lab0].visible = labels[dr.lab0 + 1].visible = false;
         dr.sinking = true;
-        RecomputeUnlocked();
-        Play("door");
-    };
-    interactables.push_back(it);
+    }
+    RecomputeUnlocked();
+    Play("door");
 }
 
 // ---------- Cajas y barriles con física (deslizan, saltan con las explosiones y ruedan) ----------
@@ -986,7 +1010,9 @@ static void PowerVisuals(float k) {
     for (int i = 0; i < roomLights; i++) lights[i].k = lerpf(0.45f, 1.0f, k);
 }
 
+static int powerLab = -1;   // cartel del interruptor
 static void BuildPowerSwitch() {
+    powerLab = -1;
     powerOn = curMap->power.room == nullptr;
     powerT = powerOn ? 99 : -1;
     leverK = powerOn ? 1 : 0;
@@ -1009,17 +1035,25 @@ static void BuildPowerSwitch() {
     it.range = 1.8f;
     it.active = []() { return !powerOn; };
     it.text = []() { return std::string("Presiona E para activar la corriente"); };
-    it.action = [lab]() {
+    powerLab = lab;
+    it.action = []() {
         if (powerOn) return;
-        powerOn = true; powerT = 0;
-        labels[lab].visible = false;
-        Play("power");
-        CenterMsg("¡CORRIENTE ACTIVADA!", Color{ 255, 230, 60, 255 }, 3);
-        SpecialMsg("Las bebidas y el Pack-a-Punch ya funcionan");
-        WhiteFlash(0.35f);
-        vm.shake = std::max(vm.shake, 0.25f);
+        PowerOnNow();
+        NetOnPower();
     };
     interactables.push_back(it);
+}
+
+// Activa la corriente (el interruptor local o el aviso del compañero)
+void PowerOnNow() {
+    if (powerOn) return;
+    powerOn = true; powerT = 0;
+    if (powerLab >= 0 && powerLab < (int)labels.size()) labels[powerLab].visible = false;
+    Play("power");
+    CenterMsg("¡CORRIENTE ACTIVADA!", Color{ 255, 230, 60, 255 }, 3);
+    SpecialMsg("Las bebidas y el Pack-a-Punch ya funcionan");
+    WhiteFlash(0.35f);
+    vm.shake = std::max(vm.shake, 0.25f);
 }
 
 static void UpdatePower(float dt) {

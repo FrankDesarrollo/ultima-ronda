@@ -84,7 +84,8 @@ static void GameOver() {
     scoped = false;
 }
 void DamagePlayer(int n) {
-    if (game.state != GS_PLAYING || n <= 0 || Practice()) return;   // en el campo de tiro no te pueden hacer daño
+    if (n <= 0 || Practice() || player.downed) return;   // en el campo de tiro no te pueden hacer daño
+    if (game.state != GS_PLAYING && !(NetActive() && game.state == GS_PAUSED)) return;   // en co-op la pausa no te hace invencible
     player.health -= n;
     player.lastHit = T;
     vm.shake = std::max(vm.shake, 0.3f);
@@ -94,11 +95,18 @@ void DamagePlayer(int n) {
     if (HasPerk(player, P_REVIVE)) {
         player.perks &= ~(1u << P_REVIVE);
         player.health = player.maxHealth;
-        for (auto &z : zombies) if (z.state == Z_CHASE && Vector3Distance(z.pos, player.pos) < 6) KillZombie(z, false, true);
+        if (!NetIsClient()) for (auto &z : zombies) if (z.state == Z_CHASE && Vector3Distance(z.pos, player.pos) < 6) KillZombie(z, false, true);
         CenterMsg("¡REVIVISTE!", Color{ 124, 196, 255, 255 });
         WhiteFlash(0.7f);
-    } else GameOver();
+    } else if (NetActive() && remote.present && !remote.downed) {
+        // co-op: caes y tu compañero tiene 30 segundos para levantarte
+        player.downed = true; player.downT = 30; player.health = 1;
+        player.vel = Vector3{ 0, 0, 0 }; player.reloading = false; player.slideT = 0;
+        CenterMsg("¡CAÍSTE!", Color{ 255, 64, 64, 255 }, 3);
+        SpecialMsg(TextFormat("%s tiene que revivirte: que se acerque y mantenga E", RemoteName()));
+    } else { GameOver(); NetOnGameOver(); }
 }
+void ForceGameOver() { if (game.state == GS_PLAYING || game.state == GS_PAUSED || game.state == GS_INTRO) GameOver(); }
 
 // ---------- Power-ups ----------
 struct PowerDef { const char *name, *shortName; unsigned color; };
@@ -106,13 +114,23 @@ static PowerDef POWERS[4] = {
     { "MUNICIÓN MÁXIMA", "MAX", 0xffd23f }, { "MUERTE INSTANTÁNEA", "INSTA", 0xff3b3b },
     { "DOBLE PUNTOS", "x2", 0x3bff6b }, { "BOMBA NUCLEAR", "BOMBA", 0xffa23b },
 };
-struct Powerup { int type; Vector3 p; float t; };
+struct Powerup { int type; Vector3 p; float t; int id; };
 static std::vector<Powerup> powerups;
 static Texture2D powerLabels[4];
 static PMat powerMats[4];
 
-void DropPowerup(float x, float z, int type) { powerups.push_back({ type < 0 ? irand(4) : type, Vector3{ x, 1, z }, 0 }); }
-static void ApplyPowerup(int type) {
+void DropPowerup(float x, float z, int type) {
+    static int idSeq = 1;
+    Powerup p{ type < 0 ? irand(4) : type, Vector3{ x, 1, z }, 0, idSeq++ };
+    powerups.push_back(p);
+    if (NetIsHost()) NetOnDrop(p.id, p.type, x, z);   // co-op: el compañero también lo ve
+}
+// co-op (invitado): el anfitrión soltó o recogió un power-up
+void NetAddPowerup(int id, int type, float x, float z) { powerups.push_back({ type, Vector3{ x, 1, z }, 0, id }); }
+void NetRemovePowerup(int id) {
+    for (size_t i = 0; i < powerups.size(); i++) if (powerups[i].id == id) { powerups.erase(powerups.begin() + i); return; }
+}
+void ApplyPowerup(int type) {
     CenterMsg(POWERS[type].name, Hex(POWERS[type].color));
     Play("powerup");
     if (type == 0) { for (auto &w : player.weapons) w.reserve = Stats(w.id, w.pap).reserve; player.grenades = 4; }
@@ -129,9 +147,12 @@ void UpdatePowerups(float dt) {
         Powerup &p = powerups[i];
         p.t += dt;
         p.p.y = 1 + sinf(p.t * 3) * 0.15f;
+        if (NetIsClient()) continue;   // co-op: recoger lo decide el anfitrión
         float d = hyp(p.p.x - player.pos.x, p.p.z - player.pos.z);
+        if (remote.present && !remote.downed) d = std::min(d, hyp(p.p.x - remote.pos.x, p.p.z - remote.pos.z));   // también lo recoge el compañero
         if (d < 1.3f || p.t > 26) {
-            if (d < 1.3f) ApplyPowerup(p.type);
+            if (d < 1.3f) { ApplyPowerup(p.type); if (NetIsHost()) NetOnPickup(p.id, p.type); }
+            else if (NetIsHost()) NetOnPickup(p.id, -1);
             powerups.erase(powerups.begin() + i);
         }
     }
@@ -242,6 +263,21 @@ static Matrix CamRot() {
 
 static const float SLIDE_TIME = 0.8f;
 static void UpdatePlayer(float dt) {
+    if (player.downed) {
+        // co-op: en el suelo, sin moverse, hasta que el compañero te levante (o se acabe el tiempo)
+        player.downT -= dt;
+        player.vel = Vector3{ 0, 0, 0 };
+        player.eye = lerpf(player.eye, 0.45f, dampk(5, dt));
+        vm.roll = lerpf(vm.roll, 0.35f, dampk(3, dt));
+        cam.position = Vector3{ player.pos.x, player.pos.y + player.eye, player.pos.z };
+        if (player.downT <= 0 || !remote.present || remote.downed) { GameOver(); NetOnGameOver(); }
+        return;
+    }
+    // co-op: mantener E junto al compañero caído para levantarlo
+    if (remote.present && remote.downed && hyp(remote.pos.x - player.pos.x, remote.pos.z - player.pos.z) < 2.0f && IsKeyDown(KEY_E)) {
+        player.reviveK += dt;
+        if (player.reviveK >= 3) { player.reviveK = 0; NetSendRevive(); AddPoints(100); }
+    } else player.reviveK = 0;
     float fx = -sinf(player.yaw), fz = -cosf(player.yaw);
     float rx = cosf(player.yaw), rz = -sinf(player.yaw);
     float mx = 0, mz = 0;
@@ -315,6 +351,10 @@ static void UpdatePlayer(float dt) {
         float dx = player.pos.x - z.pos.x, dz = player.pos.z - z.pos.z, d = hyp(dx, dz);
         if (d < 0.75f && d > 0.001f) { player.pos.x += dx / d * (0.75f - d); player.pos.z += dz / d * (0.75f - d); }
     }
+    if (remote.present) {   // co-op: no atravesar al compañero
+        float dx = player.pos.x - remote.pos.x, dz = player.pos.z - remote.pos.z, d = hyp(dx, dz);
+        if (d < 0.7f && d > 0.001f) { player.pos.x += dx / d * (0.7f - d); player.pos.z += dz / d * (0.7f - d); }
+    }
     Collide(player.pos, 0.4f, true);
     int r = RoomAt(player.pos.x, player.pos.z);
     if (r >= 0) player.room = r;
@@ -360,7 +400,7 @@ static void UpdateWeapon(float dt) {
         player.reloading = false;
     }
     UpdateMelee(dt);
-    if (mouseDown && !player.papBusy && player.knifeT < 0 && (s.autoFire || T - mousePressedAt < 0.25f) && !player.reloading && T >= player.nextShot) {
+    if (mouseDown && !player.downed && !player.papBusy && player.knifeT < 0 && (s.autoFire || T - mousePressedAt < 0.25f) && !player.reloading && T >= player.nextShot) {
         if (w.mag > 0) Fire();
         else if (w.reserve > 0) StartReload();
         else { Play("empty"); player.nextShot = T + 0.3f; Say(V_NOAMMO, 0.5f); }
@@ -429,6 +469,7 @@ static void ResetGame(const std::string &mapKey) {
     player.pos = Vector3{ s.x, 0, s.y };
     player.yaw = yaw;
     player.room = startRoom;
+    if (NetRole() == NET_CLIENT) player.pos.x += 1.6f;   // co-op: Milton aparece al lado de Frank
     vm = ViewModel();
     T = 0;
     ResetVoiceLines();
@@ -451,7 +492,7 @@ static void Update(float dt) {
     UpdateCamera();
     UpdateWeapon(dt);
     UpdateZombies(dt);
-    if (Practice()) UpdatePractice(dt); else UpdateRounds(dt);
+    if (Practice()) UpdatePractice(dt); else if (!NetIsClient()) UpdateRounds(dt);   // co-op: las rondas las lleva el anfitrión
     UpdateWorld(dt);
     UpdateProjectiles(dt);
     UpdateEffects(dt);
@@ -468,6 +509,7 @@ static void HandleInput() {
     vm.swayTY = clampf(vm.swayTY + md.y * 0.0003f, -0.03f, 0.03f);
     mouseDown = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     mouseRight = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+    if (player.downed) { mouseDown = mouseRight = false; return; }   // caído: solo mirar
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) mousePressedAt = T;
     if (IsKeyPressed(KEY_R)) StartReload();
     if (IsKeyPressed(KEY_E) && currentInteract && !currentInteract->hold) currentInteract->action();
@@ -1005,6 +1047,71 @@ static int RunMapShots(const char *mapKey, const char *outPrefix) {
     return 0;
 }
 
+// ---------- Prueba del co-op en esta PC (--net host mapa prefijo / --net join ip prefijo) ----------
+// Dos copias del juego: el anfitrión se queda quieto y el invitado camina y dispira a los zombis.
+static int RunNetTest(bool host, const char *arg, const char *outPrefix) {
+    NetLobbyClick(8);
+    if (host) {
+        NetLobbyClick(20);
+        int m = !strcmp(arg, "fabrica") ? 1 : !strcmp(arg, "pueblo") ? 2 : 0;
+        NetLobbyClick(22 + m);
+    } else {
+        NetLobbyClick(21);
+        NetJoinIP() = arg;
+        NetLobbyClick(25);
+    }
+    double t0 = GetTime(), lastPrint = 0;
+    bool didDown = false, didRevive = false, shot = false;
+    float simT = 0;
+    while (GetTime() - t0 < 45) {
+        float dt = 1.0f / 60;
+        NetUpdate(dt);
+        std::string mp;
+        if (NetTakeStart(mp)) { ResetGame(mp); game.state = GS_PLAYING; soldierView.visible = false; printf("[%s] empieza en %s\n", LocalName(), mp.c_str()); }
+        if (game.state == GS_PLAYING) {
+            simT += dt;
+            if (!host) {   // Milton camina en círculo y dispara al zombi más cercano
+                player.pos.x += cosf(simT * 0.7f) * 3 * dt; player.pos.z += sinf(simT * 0.7f) * 3 * dt;
+                Zombie *best = nullptr; float bd = 1e9f;
+                for (auto &z : zombies) if (z.state == Z_CHASE) { float d = Vector3Distance(z.pos, player.pos); if (d < bd) { bd = d; best = &z; } }
+                if (best) { float dx = best->pos.x - player.pos.x, dz = best->pos.z - player.pos.z; player.yaw = atan2f(-dx, -dz); player.pitch = atan2f(best->headPos.y - 1.65f, hyp(dx, dz)); mouseDown = true; mousePressedAt = T; }
+                else mouseDown = false;
+                if (CurWeapon().reserve < 10) CurWeapon().reserve = 200;
+                if (simT > (getenv("UR_DIE") ? 8 : 22) && !didDown) { didDown = true; player.health = 5; DamagePlayer(40); printf("[MILTON] cae: downed=%d\n", (int)player.downed); }
+            } else {
+                player.health = 1e9f; player.maxHealth = 1e9f;   // Frank no muere en la prueba
+                if (remote.downed && !didRevive && simT > 25 && !getenv("UR_DIE")) { didRevive = true; NetSendRevive(); printf("[FRANK] levanta a Milton\n"); }
+                // mira hacia el compañero para la captura
+                float dx = remote.pos.x - player.pos.x, dz = remote.pos.z - player.pos.z;
+                if (remote.present) { player.yaw = atan2f(-dx, -dz); player.pitch = -0.1f; }
+            }
+            Update(dt);
+        }
+        if (game.state != GS_MENU) RenderFrame(false);
+        if (GetTime() - lastPrint > 3 && game.state != GS_MENU) {
+            lastPrint = GetTime();
+            int alive = 0; for (auto &z : zombies) if (z.state != Z_DEAD) alive++;
+            printf("[%s] t=%.0f compañero=%d (%.1f,%.1f) caído=%d ping=%d | ronda %d zombis vivos %d | mis puntos %d bajas %d | sus puntos %d | yo caído=%d\n",
+                   LocalName(), simT, (int)remote.present, remote.pos.x, remote.pos.z, (int)remote.downed, NetPing(), game.round, alive, player.points, game.kills, remote.points, (int)player.downed);
+            fflush(stdout);
+        }
+        if (host && !shot && simT > 18 && remote.present) {
+            shot = true;
+            RenderTexture2D rt = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+            captureTarget = &rt;
+            for (int i = 0; i < 2; i++) RenderFrame(false);
+            captureTarget = nullptr;
+            Image img = LoadImageFromTexture(rt.texture);
+            ImageFlipVertical(&img);
+            ExportImage(img, TextFormat("%s_coop.png", outPrefix));
+            UnloadImage(img);
+        }
+        if (game.state == GS_OVER) { printf("[%s] fin de la partida\n", LocalName()); break; }
+    }
+    NetShutdown();
+    return 0;
+}
+
 // ---------- Subirse a las cajas (--climb bunker x) ----------
 static int RunClimbTest() {
     ResetGame("bunker"); game.state = GS_PLAYING;
@@ -1080,6 +1187,8 @@ int main(int argc, char **argv) {
     bool test = argc >= 4 && !strcmp(argv[1], "--test");
     bool bench = argc >= 4 && !strcmp(argv[1], "--bench");
     bool intro = argc >= 4 && !strcmp(argv[1], "--intro");
+    bool netTest = argc >= 5 && !strcmp(argv[1], "--net");
+    test = test || netTest;
     bool climb = argc >= 2 && !strcmp(argv[1], "--climb");
     bool shots = argc >= 4 && !strcmp(argv[1], "--shots");
     test = test || shots;
@@ -1114,6 +1223,7 @@ int main(int argc, char **argv) {
     if (test) recordsFile = "records_prueba.txt";
     if (intro) return RunIntroTest(argv[2], argv[3]);
     if (climb) return RunClimbTest();
+    if (netTest) return RunNetTest(!strcmp(argv[2], "host"), argv[3], argv[4]);
     if (shots) return RunMapShots(argv[2], argv[3]);
     if (test) return !strcmp(argv[2], "practica") ? RunPracticeTest(argv[3]) : RunTest(argv[2], argv[3]);
     if (bench) return RunBench(argv[2], (float)atof(argv[3]));
@@ -1131,6 +1241,8 @@ int main(int argc, char **argv) {
         UpdateHUDTimers(dt);
         UpdateMusic();
         int click = MenuClicked();
+        NetUpdate(dt);   // co-op: recibir, enviar y la sala de espera
+        { std::string m; if (NetTakeStart(m)) { optionsOpen = false; ResetGame(m); } }
         if (game.state == GS_MENU) {
             menuT += dt;
             // cámara girando despacio por el mapa
@@ -1141,9 +1253,11 @@ int main(int argc, char **argv) {
             camFov = 70;
             UpdateWorld(dt);
             UpdateEffects(dt);
-            if (click == 0 || click == 1) ResetGame(click == 0 ? "bunker" : "fabrica");
-            if (click == 7) ResetGame("pueblo");
-            if (click == 4) ResetGame("practica");
+            NetLobbyClick(click);
+            bool solo = NetLobbyScreen() == LB_NONE && NetRole() == NET_OFF;
+            if (solo && (click == 0 || click == 1)) ResetGame(click == 0 ? "bunker" : "fabrica");
+            if (solo && click == 7) ResetGame("pueblo");
+            if (solo && click == 4) ResetGame("practica");
             if (click == 5) optionsOpen = true;
             if (optionsOpen && (click == 6 || IsKeyPressed(KEY_ESCAPE))) { optionsOpen = false; SaveOptions(); }
             RenderFrame(game.state == GS_MENU);
@@ -1159,17 +1273,20 @@ int main(int argc, char **argv) {
             if (IsKeyPressed(KEY_ESCAPE)) { game.state = GS_PAUSED; EnableCursor(); }
             else Update(dt);
         } else if (game.state == GS_PAUSED) {
+            if (NetActive()) Update(dt);   // co-op: el mundo no se detiene
             if (optionsOpen) {
                 if (click == 6 || IsKeyPressed(KEY_ESCAPE)) { optionsOpen = false; SaveOptions(); }
             } else if (click == 5) optionsOpen = true;
-            else if (click == 3) { game.state = GS_MENU; zombies.clear(); BuildMap("bunker"); PowerOnInstant(); }
+            else if (click == 3) { NetShutdown(); game.state = GS_MENU; zombies.clear(); BuildMap("bunker"); PowerOnInstant(); }
             else if ((IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && !PauseButtonHover()) || IsKeyPressed(KEY_ESCAPE)) { game.state = GS_PLAYING; DisableCursor(); ignoreMouse = 3; }
         } else if (game.state == GS_OVER) {
-            if (click == 2) ResetGame(game.mapKey);
-            if (click == 3) { game.state = GS_MENU; zombies.clear(); BuildMap("bunker"); PowerOnInstant(); }
+            if (click == 2 && NetRole() == NET_HOST && NetConnected()) NetRestart(game.mapKey);   // co-op: reinicia a los dos
+            else if (click == 2 && NetRole() != NET_CLIENT) ResetGame(game.mapKey);
+            if (click == 3) { NetShutdown(); game.state = GS_MENU; zombies.clear(); BuildMap("bunker"); PowerOnInstant(); }
         }
         RenderFrame(game.state == GS_MENU);
     }
+    NetShutdown();
     CloseAudioDevice();
     CloseWindow();
     return 0;

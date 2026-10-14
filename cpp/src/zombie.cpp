@@ -89,7 +89,7 @@ struct SoldierPart { int mesh, bone; PMat mat; };
 static std::vector<SoldierPart> soldierParts;
 static std::vector<int> soldierBody;   // mallas con piel
 static float soldierScale = 1;
-SoldierView soldierView;
+SoldierView soldierView, remoteView;   // Frank en la cinemática y el compañero en co-op
 
 static void InitSoldier() {
     const char *mp = "assets/models/soldier.glb";
@@ -135,8 +135,8 @@ static Matrix PoseMatrix(const Transform &p) {
     return MatrixMultiply(MatrixMultiply(MatrixScale(p.scale.x, p.scale.y, p.scale.z), QuaternionToMatrix(p.rotation)), MatrixTranslate(p.translation.x, p.translation.y, p.translation.z));
 }
 
-static void DrawSoldier() {
-    const SoldierView &v = soldierView;
+static void DrawSoldierView(const SoldierView &v) {
+
     if (!v.visible || !sr.model.meshCount) return;
     SampleClip(sr, v.clip, v.t, sr.pose);
     UploadPose(sr);
@@ -155,6 +155,8 @@ static void DrawSoldier() {
     }
     if (!depthPass) SetSkinParams(0, 1, 1, Vector3{ 0, 0, 0 }, 0);
 }
+
+static void DrawSoldier() { DrawSoldierView(soldierView); DrawSoldierView(remoteView); }
 
 void InitZombies() {
     std::string mp = std::string(ZDIR) + "InfectedCityMan.glb";
@@ -348,13 +350,15 @@ float ZombieHP(int r) {
 static float ZombieSpeed() { return std::min(4.4f, 1.2f + game.round * 0.32f) * frand(0.85f, 1.15f); }
 static float TearInterval() { return std::max(0.45f, 1.3f - game.round * 0.06f); }
 
+static bool killByRemote = false;   // co-op (anfitrión): la baja es del compañero
 void KillZombie(Zombie &z, bool head, bool fromNuke) {
     if (z.state == Z_DEAD) return;
     if (z.win >= 0 && windows[z.win].climber == (int)(&z - &zombies[0])) windows[z.win].climber = -1;
     bool wasChase = z.state == Z_CHASE;
     z.state = Z_DEAD;
     z.deadT = 0;
-    if (!fromNuke && wasChase) Say(head ? V_HEAD : V_KILL, head ? 0.25f : 0.1f);
+    if (NetIsHost()) NetOnKill(z, head, killByRemote, fromNuke);   // co-op: el invitado lo ve morir igual
+    if (!fromNuke && wasChase && !killByRemote) Say(head ? V_HEAD : V_KILL, head ? 0.25f : 0.1f);
     SetClip(z, C_DIE);
     if (z.dog) {   // el perro estalla en llamas
         Vector3 c = Vector3Lerp(z.hipsPos, z.neckPos, 0.5f);
@@ -370,10 +374,12 @@ void KillZombie(Zombie &z, bool head, bool fromNuke) {
         if (wasChase) AddDecal(1, Vector3{ z.pos.x, 0.0f, z.pos.z }, Vector3{ 0, 1, 0 });
     }
     if (fromNuke) return;
-    game.kills++;
-    if (head) game.heads++;
-    AddPoints(head ? 100 : 60);
-    if (wasChase && !z.dog && !Practice() && game.drops < 4 && frand(0, 1) < 0.035f) { DropPowerup(z.pos.x, z.pos.z); game.drops++; }
+    if (!killByRemote) {   // la baja del compañero le da los puntos a él, no aquí
+        game.kills++;
+        if (head) game.heads++;
+        AddPoints(head ? 100 : 60);
+    }
+    if (wasChase && !z.dog && !Practice() && !NetIsClient() && game.drops < 4 && frand(0, 1) < 0.035f) { DropPowerup(z.pos.x, z.pos.z); game.drops++; }
 }
 
 void DamageZombie(Zombie &z, float dmg, float headMul, bool head, Vector3 point, bool green) {
@@ -391,6 +397,12 @@ void DamageZombie(Zombie &z, float dmg, float headMul, bool head, Vector3 point,
     z.hp -= dmg;
     z.hitFlash = 0.12f;
     Burst(point, green ? Color{ 70, 255, 70, 255 } : Color{ 120, 0, 0, 255 }, head ? 10 : 5, 2.5f, 0.05f);
+    if (NetIsClient()) {   // co-op: el anfitrión decide si muere (y avisa con la baja)
+        NetSendHit(z, dmg, head, point);
+        if (z.hp <= 0) ShowHit(true);
+        else { AddPoints(10); ShowHit(false); Play("hit"); }
+        return;
+    }
     if (z.hp <= 0) { KillZombie(z, head); ShowHit(true); }
     else { AddPoints(10); ShowHit(false); Play("hit"); }
 }
@@ -415,7 +427,8 @@ static void Attack(Zombie &z) {
     SetClip(z, C_ATTACK);
     z.clipT = 0.25f;
     PlayAt(z.dog ? "dog" : "groan", z.pos, 12);   // gruñido al golpear
-    DamagePlayer(z.dog ? 25 : 40);
+    if (z.atRemote) NetDamageRemote(z.dog ? 25 : 40);   // co-op: el golpe es para el compañero
+    else DamagePlayer(z.dog ? 25 : 40);
 }
 
 static bool UpdateDummy(Zombie &z, float dt, float pdx, float pdz);
@@ -424,7 +437,7 @@ static void UpdateZombie(Zombie &z, int zi, float dt) {
     z.blend = std::min(1.0f, z.blend + dt * 5);
     z.prevT += dt * z.rate;
     // ardiendo (bengala): pierde vida poco a poco
-    if (z.burnT > 0 && z.state != Z_DEAD) {
+    if (z.burnT > 0 && z.state != Z_DEAD && !NetIsClient()) {
         z.burnT -= dt;
         z.hp -= z.burnDps * dt;
         if (frand(0, 1) < dt * 25) Burst(Vector3Lerp(z.hipsPos, z.neckPos, frand(0, 1)), frand(0, 1) < 0.5f ? Color{ 255, 140, 40, 255 } : Color{ 255, 70, 20, 255 }, 1, 0.6f, 0.08f, 5);
@@ -472,7 +485,25 @@ static void UpdateZombie(Zombie &z, int zi, float dt) {
         if (z.deadT > 5.0f) z.remove = true;
         return;
     }
-    float pdx = player.pos.x - z.pos.x, pdz = player.pos.z - z.pos.z, pd = hyp(pdx, pdz);
+    // co-op (invitado): el anfitrión manda dónde está; aquí solo se suaviza el movimiento y se anima
+    if (NetIsClient()) {
+        float k = dampk(14, dt);
+        z.pos.x = lerpf(z.pos.x, z.netPos.x, k); z.pos.z = lerpf(z.pos.z, z.netPos.z, k);
+        z.y = lerpf(z.y, z.netY, k);
+        float dy = atan2f(sinf(z.netYaw - z.yaw), cosf(z.netYaw - z.yaw));
+        z.yaw += dy * k;
+        z.clipT += dt * z.rate;
+        if (T > z.nextGroan) {
+            z.nextGroan = T + (z.dog ? frand(1.2f, 3.0f) : frand(3, 8));
+            if (hyp(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 25) PlayAt(z.dog ? "dog" : "groan", z.pos);
+        }
+        return;
+    }
+    // objetivo: el jugador más cercano que siga en pie (en co-op puede ser el compañero)
+    Vector3 tp = player.pos; int troom = player.room;
+    bool atRemote = NetZombieTarget(z, tp, troom);
+    float pdx = tp.x - z.pos.x, pdz = tp.z - z.pos.z, pd = hyp(pdx, pdz);
+    z.atRemote = atRemote;   // recuerda a quién ataca (lo usa Attack)
     bool moving = false;
     if (z.attackT > 0) z.attackT -= dt;
 
@@ -525,9 +556,9 @@ static void UpdateZombie(Zombie &z, int zi, float dt) {
     } else if (z.state == Z_CHASE) {
         int r = RoomAt(z.pos.x, z.pos.z);
         if (r >= 0) z.room = r;
-        float tx = player.pos.x, tz = player.pos.z;
+        float tx = tp.x, tz = tp.z;
         int nr = -1, nl = -1;
-        bool path = z.room != player.room && NextRoom(z.room, player.room, nr, nl);
+        bool path = z.room != troom && NextRoom(z.room, troom, nr, nl);
         if (path) {
             const Link &L = links[nl];
             bool curIsA = RoomIndex(L.a) == z.room;
@@ -590,6 +621,8 @@ void UpdateZombies(float dt) {
 
 static Zombie NewZombie(float x, float z, int state, int win, int room) {
     Zombie zb;
+    static int idSeq = 1;
+    zb.id = idSeq++;
     zb.pos = Vector3{ x, 0, z };
     zb.state = state; zb.win = win; zb.room = room;
     zb.hp = game.zHP;
@@ -715,4 +748,81 @@ bool SpawnDog() {
     if (broom < 0) return false;
     zombies.push_back(NewDog(bx, bz, broom));
     return true;
+}
+
+// ---------- Co-op: zombis replicados ----------
+static const Color Z_TINTS[4] = { Color{ 225, 235, 215, 255 }, Color{ 200, 225, 190, 255 }, Color{ 215, 215, 205, 255 }, Color{ 190, 210, 200, 255 } };
+static Zombie *FindZombie(int id) {
+    for (auto &z : zombies) if (z.id == id && z.state != Z_DEAD) return &z;
+    return nullptr;
+}
+
+// Anfitrión: foto de los zombis vivos para el invitado
+int NetCollectZombies(NetZ *out, int max) {
+    int n = 0;
+    for (auto &z : zombies) {
+        if (z.state == Z_DEAD || z.dummy >= 0 || n >= max) continue;
+        NetZ &o = out[n++];
+        o.id = z.id; o.x = z.pos.x; o.y = z.y; o.z = z.pos.z; o.yaw = z.yaw; o.clipT = z.clipT; o.rate = z.rate; o.scale = z.scale;
+        o.state = (unsigned char)z.state; o.clip = (unsigned char)z.clip; o.kind = (unsigned char)z.kind;
+        o.flags = (z.dog ? 1 : 0) | (z.runner ? 2 : 0);
+        o.tint = 255;
+        for (int i = 0; i < 4; i++) if (z.tint.r == Z_TINTS[i].r && z.tint.g == Z_TINTS[i].g) o.tint = (unsigned char)i;
+    }
+    return n;
+}
+
+// Invitado: crea, mueve o quita zombis según la foto del anfitrión
+void NetApplyZombies(const NetZ *in, int n) {
+    for (auto &z : zombies) if (z.state != Z_DEAD) z.netMiss++;
+    for (int i = 0; i < n; i++) {
+        const NetZ &s = in[i];
+        Zombie *z = FindZombie(s.id);
+        if (!z) {
+            bool known = false;   // ya murió aquí (la baja llegó antes que la foto)
+            for (auto &d : zombies) if (d.id == s.id) known = true;
+            if (known) continue;
+            Zombie zb;
+            zb.id = s.id; zb.pos = Vector3{ s.x, 0, s.z }; zb.y = s.y; zb.yaw = s.yaw; zb.speed = 1;
+            zb.state = s.state; zb.clip = s.clip; zb.clipT = s.clipT; zb.rate = s.rate; zb.scale = s.scale; zb.kind = s.kind;
+            zb.dog = s.flags & 1; zb.runner = (s.flags & 2) != 0;
+            zb.tint = s.tint < 4 ? Z_TINTS[s.tint] : WHITE;
+            zb.hp = zb.dog ? DogHP() : ZombieHP(std::max(1, game.round));
+            zb.nextGroan = T + frand(1, 5);
+            zb.room = RoomAt(s.x, s.z) >= 0 ? RoomAt(s.x, s.z) : 0;
+            if (zb.dog && zb.state == Z_RISE) LightningStrike(Vector3{ s.x, 0, s.z });
+            zombies.push_back(zb);
+            z = &zombies.back();
+        }
+        z->netMiss = 0;
+        z->netPos = Vector3{ s.x, 0, s.z }; z->netY = s.y; z->netYaw = s.yaw;
+        z->state = s.state;
+        if (z->clip != s.clip) SetClip(*z, s.clip);
+        z->rate = s.rate;
+        if (fabsf(z->clipT - s.clipT) > 0.6f) z->clipT = s.clipT;
+    }
+    // los que el anfitrión ya no tiene (atascados, quitados) desaparecen tras unas fotos sin verlos
+    for (auto &z : zombies) if (z.state != Z_DEAD && z.netMiss >= 5) z.remove = true;
+}
+
+// Anfitrión: un disparo del invitado
+void NetRemoteHit(int id, float dmg, bool head, Vector3 point, Vector3 dir) {
+    Zombie *z = FindZombie(id);
+    if (!z) return;
+    z->hitDir = dir; z->hitPoint = point; z->hitAll = false;
+    z->hitForce = clampf(dmg / 80.0f, 1.5f, 6.0f);
+    if (T < game.insta) dmg = 1e9f;
+    z->hp -= dmg;
+    z->hitFlash = 0.12f;
+    Burst(point, Color{ 120, 0, 0, 255 }, head ? 10 : 5, 2.5f, 0.05f);
+    if (z->hp <= 0) { killByRemote = true; KillZombie(*z, head); killByRemote = false; }
+}
+
+// Invitado: el anfitrión confirma una baja (mine: la hice yo y me toca el puntaje)
+void NetRemoteKill(int id, bool head, bool mine, bool nuke, Vector3 dir, float force) {
+    Zombie *z = FindZombie(id);
+    if (!z) return;
+    z->pos = z->netPos;
+    z->hitDir = dir; z->hitForce = force;
+    KillZombie(*z, head, nuke || !mine);
 }

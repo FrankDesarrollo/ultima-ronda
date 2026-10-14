@@ -85,7 +85,7 @@ struct Window {
     Vector3 boardBase[5]; float boardRot[5]; bool boardVis[5]; Vector3 boardPos[5]; Vector3 boardVel[5]; float boardAnim[5]; float boardSpin[5];
     int climber = -1; float repairT = 0; Vector2 outside, inside;
 };
-struct Door { int link; Matrix tf; Vector3 pos, size; float sink = 0; bool sinking = false; Box2 col; Texture2D label; };
+struct Door { int link; Matrix tf; Vector3 pos, size; float sink = 0; bool sinking = false; Box2 col; Texture2D label; int lab0 = -1; };
 struct Interact {
     std::function<Vector2()> pos;
     float range;
@@ -204,6 +204,9 @@ struct Zombie {
     Vector3 fling{ 0, 0, 0 };              // lanzado por el Cañón de Trueno
     float burnT = 0, burnDps = 0;          // ardiendo (pistola de bengalas)
     Vector3 headPos{}, hipsPos{}, neckPos{};
+    int id = 0;                            // co-op: el mismo número en las dos PCs
+    Vector3 netPos{ 0, 0, 0 }; float netYaw = 0, netY = 0; int netMiss = 0;   // co-op (invitado): última posición que mandó el anfitrión
+    bool atRemote = false;                 // co-op (anfitrión): persigue al compañero
 };
 extern std::vector<Zombie> zombies;
 void InitZombies();
@@ -224,6 +227,7 @@ struct Player {
     float slideT = 0, nextSlide = 0; Vector3 slideDir{ 0, 0, 0 };   // deslizamiento estilo Warzone
     float knifeT = -1, nextKnife = 0, lungeT = 0; bool knifeHit = false;   // cuchillo (knifeT < 0: guardado)
     int grenades = 2; float nextGrenade = 0; bool papBusy = false; float nextHeart = 0;
+    bool downed = false; float downT = 0, reviveK = 0; int shots = 0;   // co-op: caído (esperando que lo reviva el compañero)
 };
 enum PerkId { P_REVIVE, P_JUGG, P_SPEED, P_DOUBLE, P_STAMIN, P_COUNT };
 struct PerkDef { const char *name; char letter; unsigned color; int cost; const char *desc; };
@@ -235,6 +239,7 @@ struct Game {
     bool dogRound = false; int nextDogRound = 5, dogRounds = 0; float fogK = 0; Vector3 lastDogPos{ 0, 0, 0 };   // rondas de perros
 };
 enum { GS_MENU, GS_PLAYING, GS_PAUSED, GS_OVER, GS_INTRO };
+void ForceGameOver();   // co-op: el compañero avisa que se acabó
 // Cinemática de llegada al mapa (intro.cpp)
 void StartIntro();
 void UpdateIntro(float dt);
@@ -327,3 +332,64 @@ const char *VoiceSubtitle(float &alpha);   // lo que está diciendo Frank ahora 
 // ---------- Frank en la cinemática (zombie.cpp) ----------
 struct SoldierView { bool visible = false; Vector3 pos{}; float yaw = 0; int clip = C_WALK; float t = 0; };
 extern SoldierView soldierView;   // clip: C_WALK correr con arma, C_ATTACK apuntar, C_IDLE quieto
+
+// ---------- Co-op en línea (net.cpp): Frank es el anfitrión, Milton se une por IP ----------
+enum { NET_OFF, NET_HOST, NET_CLIENT };
+int NetRole();
+bool NetActive();                 // hay partida en co-op con el compañero conectado
+inline bool NetIsHost() { return NetRole() == NET_HOST && NetActive(); }
+inline bool NetIsClient() { return NetRole() == NET_CLIENT; }
+const char *LocalName();          // "FRANK" o "MILTON"
+const char *RemoteName();
+void NetUpdate(float dt);         // cada fotograma: recibir y enviar
+void NetShutdown();
+// avisos del juego a la red
+void NetOnDoorOpened(int link);
+void NetOnPower();
+void NetOnRepair(int window);
+void NetOnKill(const Zombie &z, bool head, bool byRemote, bool nuke);   // anfitrión
+void NetSendHit(const Zombie &z, float dmg, bool head, Vector3 point);  // invitado
+void NetOnDrop(int id, int type, float x, float z);                     // anfitrión
+void NetOnPickup(int id, int type);                                     // anfitrión
+void NetOnGameOver();
+void NetDamageRemote(int n);
+void NetDrawLabels();
+// el compañero, visto desde aquí
+struct RemotePlayer { bool present = false; Vector3 pos{}; float yaw = 0, pitch = 0, speed = 0, animT = 0, health = 100; int weapon = 0, points = 0, room = 0; bool crouch = false, downed = false; };
+extern RemotePlayer remote;
+bool NetZombieTarget(const Zombie &z, Vector3 &pos, int &room);   // anfitrión: ¿va a por el compañero?
+// mundo compartido
+void OpenLinkNow(int link);
+void PowerOnNow();
+void RepairBoardNow(int window);
+void SetWindowBoards(int window, int count);
+void PlayGunAt(int weapon, Vector3 pos);
+// zombis replicados (zombie.cpp)
+#pragma pack(push, 1)
+struct NetZ { int id; float x, y, z, yaw, clipT, rate, scale; unsigned char state, clip, kind, flags, tint; };   // flags: 1 perro, 2 corredor
+#pragma pack(pop)
+int NetCollectZombies(NetZ *out, int max);
+void NetApplyZombies(const NetZ *in, int n);
+void NetRemoteHit(int id, float dmg, bool head, Vector3 point, Vector3 dir);   // anfitrión: disparo del invitado
+void NetRemoteKill(int id, bool head, bool mine, bool nuke, Vector3 dir, float force);   // invitado
+extern SoldierView remoteView;    // el soldado del compañero
+// power-ups compartidos (main.cpp)
+void ApplyPowerup(int type);
+void NetAddPowerup(int id, int type, float x, float z);
+void NetRemovePowerup(int id);
+void RoundFlash();
+void DogFog(float k);
+void NetSendRevive();             // levanté al compañero
+void NetRevived();                // el compañero me levantó
+// sala de espera del co-op (net.cpp, la dibuja hud.cpp)
+enum { LB_NONE, LB_CHOICE, LB_HOST_PICK, LB_HOSTING, LB_JOIN, LB_CONNECTING };
+int NetLobbyScreen();
+void NetLobbyClick(int click);
+std::string &NetJoinIP();
+const std::string &NetStatus();
+std::string NetPublicIP();
+std::string NetLocalIP();
+int NetPing();
+bool NetTakeStart(std::string &map);
+void NetRestart(const std::string &map);
+bool NetConnected();             // hay conexión con el compañero (aunque la partida no haya empezado)

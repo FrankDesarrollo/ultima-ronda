@@ -854,6 +854,7 @@ void RenderFrame(bool menu) {
     rlDisableDepthMask();
     DrawEffects();
     DrawLabels();
+    NetDrawLabels();
     rlEnableDepthMask();
     EndMode3D();
 

@@ -7,3 +7,6 @@ cpp/tools/
 cpp/dl/
 cpp/UltimaRonda/
 cpp/test/*.png
+
+cpp/build/
+cpp/UltimaRonda/ultima_ip.txt

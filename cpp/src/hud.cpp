@@ -168,14 +168,35 @@ void DrawHUD() {
     DrawRectangle((int)hx, (int)hy, (int)(240 * s), (int)(10 * s), Color{ 0, 0, 0, 140 });
     DrawRectangleGradientH((int)hx, (int)hy, (int)(240 * s * clampf(player.health / player.maxHealth, 0, 1)), (int)(10 * s), Color{ 138, 0, 0, 255 }, Color{ 232, 48, 48, 255 });
     DrawRectangleLines((int)hx, (int)hy, (int)(240 * s), (int)(10 * s), Color{ 255, 255, 255, 90 });
-    Text(fontUI, "SGTO. FRANK", hx, hy + 14 * s, 17 * s, Color{ 200, 210, 170, 220 }, 0, 1);
+    Text(fontUI, TextFormat("SGTO. %s", LocalName()), hx, hy + 14 * s, 17 * s, Color{ 200, 210, 170, 220 }, 0, 1);
+    // co-op: el compañero, caer y levantarse
+    if (NetActive()) {
+        Text(fontUI, TextFormat("%s  %d", RemoteName(), remote.points), W - 40 * s, Hh - 262 * s, 24 * s, remote.downed ? Color{ 255, 90, 60, 255 } : Color{ 150, 230, 120, 255 }, 1, 2);
+        Text(fontUI, TextFormat("ping %d ms", NetPing()), W - 40 * s, Hh - 290 * s, 15 * s, Color{ 170, 170, 170, 180 }, 1, 1);
+        if (remote.downed && !player.downed) {
+            float d = hyp(remote.pos.x - player.pos.x, remote.pos.z - player.pos.z);
+            bool blink = (int)(GetTime() * 3) % 2 == 0;
+            Text(fontUI, TextFormat("¡%s CAÍDO! · a %d m", RemoteName(), (int)d), W / 2.0f, Hh * 0.12f, 30 * s, blink ? Color{ 255, 80, 60, 255 } : Color{ 255, 200, 180, 255 }, 0.5f, 2);
+            if (d < 2.0f && player.reviveK <= 0) Text(fontUI, TextFormat("Mantén E para levantar a %s", RemoteName()), W / 2.0f, Hh * 0.62f, 24 * s, WHITE, 0.5f, 2);
+        }
+        if (player.reviveK > 0) {
+            float bw = 320 * s;
+            Text(fontUI, TextFormat("LEVANTANDO A %s", RemoteName()), W / 2.0f, Hh * 0.6f, 22 * s, WHITE, 0.5f, 2);
+            DrawRectangle((int)(W / 2 - bw / 2), (int)(Hh * 0.6f + 32 * s), (int)bw, (int)(10 * s), Color{ 0, 0, 0, 160 });
+            DrawRectangle((int)(W / 2 - bw / 2), (int)(Hh * 0.6f + 32 * s), (int)(bw * player.reviveK / 3), (int)(10 * s), Color{ 124, 196, 255, 255 });
+        }
+        if (player.downed) {
+            Text(fontUI, "CAÍDO", W / 2.0f, Hh * 0.3f, 64 * s, Color{ 220, 30, 30, 255 }, 0.5f, 3);
+            Text(fontUI, TextFormat("%s tiene %d s para levantarte", RemoteName(), (int)ceilf(std::max(0.0f, player.downT))), W / 2.0f, Hh * 0.3f + 74 * s, 24 * s, WHITE, 0.5f, 2);
+        }
+    }
     // lo que va diciendo Frank
     float sa = 0;
     if (const char *sub = VoiceSubtitle(sa)) {
         unsigned char a = (unsigned char)(sa * 255);
         float sy = Hh * 0.8f, fs = 26 * s;
         float tw = MeasureTextEx(fontUI, sub, fs, 1).x;
-        Text(fontUI, "FRANK:", W / 2.0f - tw / 2 - 10 * s, sy + 3 * s, 20 * s, Color{ 150, 210, 120, a }, 1, 2);
+        Text(fontUI, TextFormat("%s:", LocalName()), W / 2.0f - tw / 2 - 10 * s, sy + 3 * s, 20 * s, Color{ 150, 210, 120, a }, 1, 2);
         Text(fontUI, sub, W / 2.0f, sy, fs, Color{ 245, 245, 245, a }, 0.5f, 2);
     }
     int pi = 0;
@@ -297,10 +318,60 @@ static void Overlay() {
     DrawRectangleGradientV(0, 0, W, Hh, Color{ 40, 0, 0, 150 }, Color{ 0, 0, 0, 230 });
 }
 
+// ---------- Multijugador: sala de espera ----------
+static void DrawLobby() {
+    float s = S();
+    int W = GetScreenWidth(), Hh = GetScreenHeight();
+    Overlay();
+    const char *title = "MULTIJUGADOR";
+    float ts = 96 * s;
+    Vector2 tm = MeasureTextEx(fontTitle, title, ts, 4);
+    DrawTextEx(fontTitle, title, Vector2{ W / 2 - tm.x / 2 + 4, Hh * 0.08f + 4 }, ts, 4, Color{ 0, 0, 0, 220 });
+    DrawTextEx(fontTitle, title, Vector2{ W / 2 - tm.x / 2, Hh * 0.08f }, ts, 4, Color{ 204, 0, 0, 255 });
+    float y = Hh * 0.08f + ts + 20 * s;
+    Color grey{ 190, 190, 190, 255 }, gold{ 255, 216, 74, 255 }, green{ 150, 230, 120, 255 };
+    float bw = 300 * s, bh = 92 * s, gap = 24 * s;
+    int lb = NetLobbyScreen();
+    if (lb == LB_CHOICE) {
+        Text(fontUI, "Co-op por internet para dos: FRANK crea la partida y MILTON se une con su IP.", W / 2.0f, y, 22 * s, grey, 0.5f, 1);
+        Button(Rectangle{ W / 2 - bw - gap / 2, y + 50 * s, bw, bh }, "CREAR PARTIDA", "Juegas como FRANK (anfitrión)", 20);
+        Button(Rectangle{ W / 2 + gap / 2, y + 50 * s, bw, bh }, "UNIRSE", "Juegas como MILTON", 21);
+        Text(fontUI, "Quien crea la partida tiene que abrir el puerto UDP 27015 en su router (reenvío de puertos).", W / 2.0f, y + 170 * s, 19 * s, grey, 0.5f, 1);
+    } else if (lb == LB_HOST_PICK) {
+        Text(fontUI, "Elige el mapa", W / 2.0f, y, 28 * s, WHITE, 0.5f, 2);
+        const char *names[3] = { "BÚNKER", "FÁBRICA", "PUEBLO" }, *subs[3] = { "Pasillos estrechos", "Mapa grande", "Al aire libre" };
+        float mw = 260 * s, x0 = W / 2 - mw * 1.5f - gap;
+        for (int i = 0; i < 3; i++) Button(Rectangle{ x0 + i * (mw + gap), y + 50 * s, mw, bh }, names[i], subs[i], 22 + i);
+    } else if (lb == LB_HOSTING) {
+        std::string pub = NetPublicIP(), loc = NetLocalIP();
+        Text(fontUI, NetStatus().c_str(), W / 2.0f, y, 30 * s, gold, 0.5f, 2);
+        Text(fontUI, "Pásale a MILTON tu IP pública:", W / 2.0f, y + 60 * s, 22 * s, grey, 0.5f, 1);
+        Text(fontUI, pub.empty() ? "averiguando..." : pub.c_str(), W / 2.0f, y + 92 * s, 48 * s, green, 0.5f, 3);
+        Text(fontUI, TextFormat("Router: reenvía el puerto UDP 27015 a esta PC (%s)", loc.empty() ? "?" : loc.c_str()), W / 2.0f, y + 160 * s, 20 * s, grey, 0.5f, 1);
+        Text(fontUI, "Si Windows pregunta por el firewall, dale a Permitir.", W / 2.0f, y + 190 * s, 20 * s, grey, 0.5f, 1);
+    } else if (lb == LB_JOIN || lb == LB_CONNECTING) {
+        Text(fontUI, "IP pública de FRANK:", W / 2.0f, y, 24 * s, grey, 0.5f, 1);
+        Rectangle box{ W / 2 - 240 * s, y + 36 * s, 480 * s, 64 * s };
+        DrawRectangleRec(box, Color{ 0, 0, 0, 170 });
+        DrawRectangleLinesEx(box, 2, lb == LB_JOIN ? gold : grey);
+        std::string ip = NetJoinIP();
+        if (lb == LB_JOIN && ((int)(GetTime() * 2) % 2 == 0)) ip += "_";
+        Text(fontUI, ip.c_str(), W / 2.0f, y + 46 * s, 40 * s, WHITE, 0.5f, 1);
+        if (lb == LB_JOIN) {
+            Text(fontUI, "Escribe la IP (o Ctrl+V para pegarla) y pulsa CONECTAR o Enter", W / 2.0f, y + 110 * s, 19 * s, grey, 0.5f, 1);
+            Button(Rectangle{ W / 2 - 140 * s, y + 145 * s, 280 * s, 60 * s }, "CONECTAR", nullptr, 25);
+        }
+        if (!NetStatus().empty()) Text(fontUI, NetStatus().c_str(), W / 2.0f, y + 220 * s, 22 * s, lb == LB_CONNECTING ? gold : Color{ 255, 120, 100, 255 }, 0.5f, 1);
+    }
+    if (lb == LB_HOST_PICK && !NetStatus().empty()) Text(fontUI, NetStatus().c_str(), W / 2.0f, y + 170 * s, 22 * s, Color{ 255, 120, 100, 255 }, 0.5f, 1);
+    Button(Rectangle{ W / 2 - 130 * s, Hh * 0.8f, 260 * s, 52 * s }, lb == LB_HOSTING || lb == LB_CONNECTING ? "CANCELAR" : "VOLVER", nullptr, 26);
+}
+
 void DrawMenu() {
     float s = S();
     int W = GetScreenWidth(), Hh = GetScreenHeight();
     if (optionsOpen) { DrawOptions(); return; }
+    if (NetLobbyScreen() != LB_NONE) { DrawLobby(); return; }
     Overlay();
     const char *title = CONFIG::titulo;
     float ts = 130 * s;
@@ -326,7 +397,8 @@ void DrawMenu() {
         float cx = bx0 + (bw + gap) * i + bw / 2;
         Text(fontUI, b, cx, by + bh + 8 * s, 18 * s, r.round > 0 ? Color{ 255, 216, 74, 255 } : Color{ 150, 150, 150, 255 }, 0.5f, 1);
     }
-    Button(Rectangle{ W / 2 - 130 * s, by + bh + 40 * s, 260 * s, 52 * s }, "OPCIONES", nullptr, 5);
+    Button(Rectangle{ W / 2 - 270 * s, by + bh + 40 * s, 260 * s, 52 * s }, "MULTIJUGADOR", nullptr, 8);
+    Button(Rectangle{ W / 2 + 10 * s, by + bh + 40 * s, 260 * s, 52 * s }, "OPCIONES", nullptr, 5);
     const char *ctrl[][2] = { { "W A S D", "moverse" }, { "Ratón", "apuntar" }, { "Clic izq.", "disparar" }, { "Clic der.", "mirilla" },
                               { "Shift", "correr" }, { "Espacio", "saltar" }, { "C", "agacharse / deslizar" }, { "G", "granada" },
                               { "R", "recargar" }, { "E", "comprar / reparar / interruptor" }, { "1 / 2 / 3", "cambiar arma" }, { "M", "música" },
@@ -378,6 +450,7 @@ void DrawGameOver() {
     snprintf(b[4], 64, "Tu récord: ronda %d · %d bajas", r.round, r.kills);
     for (int i = 0; i < 5; i++) Text(fontUI, b[i], W / 2.0f, Hh * 0.34f + i * 36 * s, 26 * s, i == 4 ? Color{ 255, 216, 74, 255 } : Color{ 230, 230, 230, 255 }, 0.5f);
     if (newRecord && ((int)(GetTime() * 3) % 2 == 0)) Text(fontUI, "¡NUEVO RÉCORD!", W / 2.0f, Hh * 0.34f + 5 * 36 * s + 4 * s, 34 * s, Color{ 255, 126, 182, 255 }, 0.5f, 3);
-    Button(Rectangle{ W / 2 - 300 * s, Hh * 0.66f, 280 * s, 70 * s }, "JUGAR DE NUEVO", nullptr, 2);
+    if (NetRole() == NET_CLIENT) Text(fontUI, "FRANK decide si juegan de nuevo", W / 2.0f - 160 * s, Hh * 0.66f + 22 * s, 22 * s, Color{ 180, 180, 180, 255 }, 0.5f, 1);
+    else Button(Rectangle{ W / 2 - 300 * s, Hh * 0.66f, 280 * s, 70 * s }, "JUGAR DE NUEVO", nullptr, 2);
     Button(Rectangle{ W / 2 + 20 * s, Hh * 0.66f, 280 * s, 70 * s }, "MENÚ", nullptr, 3);
 }
