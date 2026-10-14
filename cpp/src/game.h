@@ -231,7 +231,11 @@ struct Game {
     float insta = 0, dbl = 0; int drops = 0, kills = 0, heads = 0, repairPts = 0; std::string mapKey = "bunker";
     bool dogRound = false; int nextDogRound = 5, dogRounds = 0; float fogK = 0; Vector3 lastDogPos{ 0, 0, 0 };   // rondas de perros
 };
-enum { GS_MENU, GS_PLAYING, GS_PAUSED, GS_OVER };
+enum { GS_MENU, GS_PLAYING, GS_PAUSED, GS_OVER, GS_INTRO };
+// Cinemática de llegada al mapa (intro.cpp)
+void StartIntro();
+void UpdateIntro(float dt);
+void DrawIntro();
 struct ViewModel { float kick = 0, swap = 0, ads = 0, bobT = 0, bobAmt = 0, flash = 0, shake = 0, sprint = 0, land = 0, roll = 0, recoil = 0, swayX = 0, swayY = 0, swayTX = 0, swayTY = 0, throwT = 0, slide = 0, fov = 75; unsigned flashColor = 0xffaa55; };
 extern Player player;
 extern Game game;

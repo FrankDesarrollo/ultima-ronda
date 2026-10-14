@@ -425,7 +425,7 @@ static void ResetGame(const std::string &mapKey) {
         game.drops = 99;
         CenterMsg("CAMPO DE TIRO", Color{ 255, 216, 74, 255 }, 2.5f);
         SpecialMsg("Todo es gratis y nadie te puede hacer daño. ¡A practicar!");
-    } else CenterMsg("SOBREVIVE", Color{ 255, 64, 64, 255 }, 2.5f);
+    } else StartIntro();   // "SOBREVIVE" sale al terminar la cinemática
     DisableCursor();
     ignoreMouse = 3;
 }
@@ -696,7 +696,7 @@ static int RunTest(const char *mapKey, const char *outPrefix) {
         optionsOpen = false;
         captureTarget = nullptr;
     }
-    ResetGame(mapKey);
+    ResetGame(mapKey); game.state = GS_PLAYING;   // sin cinemática
     EnableCursor();
     player.points = 99999; game.betweenT = 0.1f;
     printf("walls:%d win:%d cols:%d inter:%d lights:%d\n", (int)mmWalls.size(), (int)windows.size(), (int)colliders.size(), (int)interactables.size(), (int)lights.size());
@@ -964,9 +964,32 @@ static int RunTest(const char *mapKey, const char *outPrefix) {
     return 0;
 }
 
+// ---------- Capturas de la cinemática de llegada (--intro mapa prefijo) ----------
+static int RunIntroTest(const char *mapKey, const char *outPrefix) {
+    RenderTexture2D rt = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    ResetGame(mapKey);
+    const float shots[] = { 1.5f, 3.6f, 5.0f, 7.0f, 9.3f, 10.4f };
+    float t = 0; int si = 0;
+    while (game.state == GS_INTRO && si < 6) {
+        UpdateIntro(0.05f); UpdateWorld(0.05f); t += 0.05f;
+        if (t >= shots[si]) {
+            captureTarget = &rt;
+            for (int i = 0; i < 2; i++) RenderFrame(false);
+            captureTarget = nullptr;
+            Image img = LoadImageFromTexture(rt.texture);
+            ImageFlipVertical(&img);
+            ExportImage(img, TextFormat("%s_intro%d.png", outPrefix, si));
+            UnloadImage(img);
+            si++;
+        }
+    }
+    printf("intro %s: %d capturas, estado final %d\n", mapKey, si, game.state);
+    return 0;
+}
+
 // ---------- Medición de rendimiento (--bench mapa segundos) ----------
 static int RunBench(const char *mapKey, float secs) {
-    ResetGame(mapKey);
+    ResetGame(mapKey); game.state = GS_PLAYING;
     EnableCursor();
     player.points = 99999; game.betweenT = 0.5f;
     for (auto &it : interactables) if (it.text().find("puerta") != std::string::npos) it.action();
@@ -992,6 +1015,8 @@ static int RunBench(const char *mapKey, float secs) {
 int main(int argc, char **argv) {
     bool test = argc >= 4 && !strcmp(argv[1], "--test");
     bool bench = argc >= 4 && !strcmp(argv[1], "--bench");
+    bool intro = argc >= 4 && !strcmp(argv[1], "--intro");
+    test = test || intro;
     ChangeDirectory(GetApplicationDirectory());
     unsigned flags = FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT;
     if (test) flags = FLAG_WINDOW_HIDDEN;
@@ -1017,6 +1042,7 @@ int main(int argc, char **argv) {
     cam.projection = CAMERA_PERSPECTIVE;
     player.weapons.push_back({ W_PISTOL, 8, 80, false });
 
+    if (intro) return RunIntroTest(argv[2], argv[3]);
     if (test) return !strcmp(argv[2], "practica") ? RunPracticeTest(argv[3]) : RunTest(argv[2], argv[3]);
     if (bench) return RunBench(argv[2], (float)atof(argv[3]));
 
@@ -1050,7 +1076,12 @@ int main(int argc, char **argv) {
             RenderFrame(game.state == GS_MENU);
             continue;
         }
-        if (game.state == GS_PLAYING) {
+        if (game.state == GS_INTRO) {
+            UpdateIntro(dt);
+            UpdateWorld(dt);
+            UpdateEffects(dt);
+            if (game.state == GS_PLAYING) ignoreMouse = 3;
+        } else if (game.state == GS_PLAYING) {
             HandleInput();
             if (IsKeyPressed(KEY_ESCAPE)) { game.state = GS_PAUSED; EnableCursor(); }
             else Update(dt);

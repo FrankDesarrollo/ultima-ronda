@@ -878,6 +878,7 @@ void RenderFrame(bool menu) {
         DrawTexturePro(ldrRT.texture, Rectangle{ 0, 0, (float)rtW, -(float)rtH }, Rectangle{ 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() }, Vector2{ 0, 0 }, 0, WHITE);
         EndShaderMode();
         if (menu) DrawMenu();
+        else if (game.state == GS_INTRO) DrawIntro();
         else {
             DrawHUD();
             if (game.state == GS_PAUSED) DrawPause();
